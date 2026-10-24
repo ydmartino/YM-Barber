@@ -1,6 +1,6 @@
-const API = "/api?route=";
+import { api, setCsrfToken, setUnauthorizedHandler } from "../models/api.model.js";
+
 let currentUser = null;
-let csrfToken = "";
 let products = [];
 let clients = [];
 let permissionCatalog = [];
@@ -20,28 +20,6 @@ function showToast(message, isError = false) {
   toast.classList.add("show");
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => toast.classList.remove("show"), 3200);
-}
-
-async function api(route, options = {}) {
-  const headers = { Accept: "application/json", ...(options.headers || {}) };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
-  if (options.method && !["GET", "HEAD"].includes(options.method)) headers["X-CSRF-Token"] = csrfToken;
-  const response = await fetch(`${API}${route}`, {
-    ...options,
-    headers,
-    credentials: "same-origin",
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    if (response.status === 401 && currentUser) {
-      currentUser = null;
-      csrfToken = "";
-      showLogin();
-    }
-    throw new Error(payload.error || `Erro na solicitação (${response.status}).`);
-  }
-  return payload;
 }
 
 function can(permission) {
@@ -64,7 +42,7 @@ function showLogin() {
 
 function showApplication(user, token) {
   currentUser = user;
-  csrfToken = token;
+  setCsrfToken(token);
   $("#login-screen").hidden = true;
   $("#app-shell").hidden = false;
   const initials = user.name.trim().charAt(0).toLocaleUpperCase("pt-BR") || "N";
@@ -313,7 +291,7 @@ $("#logout-button").addEventListener("click", async () => {
   try {
     await api("logout", { method: "POST", body: {} });
     currentUser = null;
-    csrfToken = "";
+    setCsrfToken("");
     showLogin();
   } catch (error) {
     showToast(error.message, true);
@@ -458,6 +436,12 @@ $("#users-table").addEventListener("click", async (event) => {
 $("#today-label").textContent = new Intl.DateTimeFormat("pt-BR", {
   weekday: "short", day: "numeric", month: "short", year: "numeric",
 }).format(new Date());
+
+setUnauthorizedHandler(() => {
+  currentUser = null;
+  setCsrfToken("");
+  showLogin();
+});
 
 async function initialize() {
   try {

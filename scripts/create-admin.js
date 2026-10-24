@@ -1,26 +1,12 @@
 "use strict";
 
-const crypto = require("node:crypto");
-const fs = require("node:fs");
-const path = require("node:path");
 const readline = require("node:readline");
-const mysql = require("mysql2/promise");
+const { loadEnvironment } = require("../src/config/environment");
 
 loadEnvironment();
-
-function loadEnvironment() {
-  const filename = path.join(__dirname, "..", ".env");
-  if (!fs.existsSync(filename)) return;
-  for (const line of fs.readFileSync(filename, "utf8").split(/\r?\n/)) {
-    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
-    if (!match || match[1] in process.env) continue;
-    let value = match[2];
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    process.env[match[1]] = value;
-  }
-}
+const { pool } = require("../src/models/database.model");
+const userModel = require("../src/models/user.model");
+const { passwordHash } = require("../src/models/errors");
 
 function readHiddenPassword() {
   if (!process.stdin.isTTY || !process.stdin.setRawMode) {
@@ -70,25 +56,16 @@ async function main() {
   if (password.length < 12 || password.length > 200) {
     throw new Error("A senha deve ter entre 12 e 200 caracteres.");
   }
-  const salt = crypto.randomBytes(16);
-  const key = crypto.scryptSync(password, salt, 64);
-  const passwordHash = `scrypt$${salt.toString("base64url")}$${key.toString("base64url")}`;
-  const pool = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    port: Number(process.env.DB_PORT || 3306),
-    database: process.env.DB_NAME || "navalha",
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    charset: "utf8mb4",
-    timezone: "Z",
-    connectionLimit: 1,
-  });
   try {
-    const [result] = await pool.execute(
-      "INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, 1)",
-      [name, email, passwordHash]
-    );
-    console.log(`Administrador criado com sucesso (ID ${result.insertId}): ${email}`);
+    const result = await userModel.create({
+      name,
+      email,
+      passwordHash: passwordHash(password),
+      isAdmin: true,
+      permissionIds: [],
+      grantedBy: null,
+    });
+    console.log(`Administrador criado com sucesso (ID ${result.id}): ${email}`);
   } finally {
     await pool.end();
   }

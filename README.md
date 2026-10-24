@@ -80,3 +80,30 @@ valida as permissões em cada requisição, não apenas na interface.
 As vendas preservam nome e preço do produto no momento da compra. Produtos com
 histórico de movimentação são desativados em vez de removidos, mantendo a
 integridade do histórico.
+
+## Organização do código (MVP)
+
+O projeto separa responsabilidades segundo **Model–View–Presenter**:
+
+```text
+src/
+  models/       MySQL, acesso aos dados, validações e regras de persistência
+  presenters/   Casos de uso, permissões e coordenação dos módulos
+  views/        Endpoints HTTP da API e arquivos da aplicação
+  config/       Configuração do ambiente
+public/
+  models/       Comunicação da interface com a API
+  presenters/   Interações, estado da tela e atualização da interface
+  views/        HTML e CSS
+scripts/        Comandos administrativos
+```
+
+- **Models** executam consultas preparadas e encapsulam o acesso ao banco.
+- **Presenters** validam a operação solicitada, verificam permissões e coordenam
+  os Models.
+- **Views** recebem requisições, retornam respostas HTTP e exibem a interface.
+- Na interface, o modelo encapsula as chamadas à API e o presenter coordena
+  formulários, navegação e atualização das views.
+
+As rotas HTTP existentes (`/api?route=...`) foram mantidas para preservar a
+compatibilidade entre o navegador e o servidor.
