@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#171714">
+    <title>Navalha — Gestão da barbearia</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Navalha, início">
+        <span class="brand-mark">N<span>.</span></span>
+        <span class="brand-name">navalha<small>BARBEARIA</small></span>
+      </a>
+      <div class="sidebar-label">MENU PRINCIPAL</div>
+      <nav class="nav-list" aria-label="Menu principal">
+        <button class="nav-link active" data-view="dashboard"><span class="nav-icon">⌂</span>Visão geral</button>
+        <button class="nav-link" data-view="clients"><span class="nav-icon">♙</span>Clientes</button>
+        <button class="nav-link" data-view="products"><span class="nav-icon">▤</span>Produtos</button>
+        <button class="nav-link" data-view="sales"><span class="nav-icon">↗</span>Vendas</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="avatar">N</span>
+        <span class="user-info"><strong>Minha barbearia</strong><small>Administrador</small></span>
+        <span class="online-dot"></span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="breadcrumb">NAVALHA <span>/</span> <strong id="breadcrumb-current">VISÃO GERAL</strong></div>
+        <div class="topbar-right"><span class="today-label" id="today-label"></span><span class="top-avatar">N</span></div>
+      </header>
+
+      <section class="page active" id="view-dashboard">
+        <div class="page-heading">
+          <div><p class="eyebrow">SEU NEGÓCIO EM UM SÓ LUGAR</p><h1>Bom dia, barbeiro<span class="gold">.</span></h1><p class="subheading">Acompanhe o movimento da sua barbearia.</p></div>
+          <button class="button button-primary" data-go="sales"><span>＋</span> Nova venda</button>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card"><div class="stat-top"><span>VENDAS DE HOJE</span><span class="stat-icon">↗</span></div><strong id="stat-today">R$ 0,00</strong><small id="stat-today-count">0 vendas realizadas</small></article>
+          <article class="stat-card"><div class="stat-top"><span>CLIENTES CADASTRADOS</span><span class="stat-icon">♙</span></div><strong id="stat-clients">0</strong><small>na sua base de clientes</small></article>
+          <article class="stat-card"><div class="stat-top"><span>PRODUTOS NO ESTOQUE</span><span class="stat-icon">▤</span></div><strong id="stat-products">0</strong><small id="stat-stock">itens disponíveis</small></article>
+        </div>
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">ACOMPANHAMENTO</p><h2>Vendas recentes</h2></div><button class="text-button" data-go="sales">Ver todas <span>→</span></button></div>
+            <div class="table-wrap"><table><thead><tr><th>CLIENTE</th><th>PRODUTO</th><th>DATA</th><th class="align-right">VALOR</th></tr></thead><tbody id="recent-sales"></tbody></table><div class="empty-state" id="sales-empty"><span class="empty-icon">↗</span><strong>Nenhuma venda por aqui</strong><p>Suas vendas aparecerão aqui assim que forem registradas.</p><button class="text-button" data-go="sales">Registrar primeira venda →</button></div></div>
+          </section>
+          <aside class="panel quick-panel"><div class="panel-heading"><div><p class="eyebrow">ATALHOS</p><h2>Acesso rápido</h2></div></div><button class="quick-action" data-go="clients"><span class="quick-icon">♙</span><span><strong>Novo cliente</strong><small>Adicione alguém à sua base</small></span><span class="quick-arrow">→</span></button><button class="quick-action" data-go="products"><span class="quick-icon">▤</span><span><strong>Cadastrar produto</strong><small>Atualize seu catálogo</small></span><span class="quick-arrow">→</span></button><div class="stock-alert"><span class="alert-icon">!</span><span><strong id="low-stock-count">0 produtos</strong><small>com estoque baixo</small></span></div></aside>
+        </div>
+      </section>
+
+      <section class="page" id="view-clients">
+        <div class="page-heading"><div><p class="eyebrow">RELACIONAMENTO</p><h1>Clientes<span class="gold">.</span></h1><p class="subheading">Organize e acompanhe sua base de clientes.</p></div><button class="button button-primary" id="new-client-button"><span>＋</span> Novo cliente</button></div>
+        <div class="panel">
+          <div class="panel-toolbar"><div><h2>Todos os clientes</h2><p id="client-count" class="subheading">0 clientes cadastrados</p></div><label class="search-box"><span>⌕</span><input id="client-search" type="search" placeholder="Buscar cliente..." aria-label="Buscar cliente"></label></div>
+          <div class="table-wrap"><table><thead><tr><th>NOME</th><th>TELEFONE</th><th>E-MAIL</th><th>CADASTRO</th><th></th></tr></thead><tbody id="clients-table"></tbody></table><div class="empty-state" id="clients-empty"><span class="empty-icon">♙</span><strong>Nenhum cliente cadastrado</strong><p>Cadastre seu primeiro cliente para começar.</p></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="view-products">
+        <div class="page-heading"><div><p class="eyebrow">CATÁLOGO E ESTOQUE</p><h1>Produtos<span class="gold">.</span></h1><p class="subheading">Gerencie os produtos disponíveis na barbearia.</p></div><button class="button button-primary" id="new-product-button"><span>＋</span> Novo produto</button></div>
+        <div class="panel">
+          <div class="panel-toolbar"><div><h2>Seu catálogo</h2><p id="product-count" class="subheading">0 produtos cadastrados</p></div><label class="search-box"><span>⌕</span><input id="product-search" type="search" placeholder="Buscar produto..." aria-label="Buscar produto"></label></div>
+          <div class="table-wrap"><table><thead><tr><th>PRODUTO</th><th>CATEGORIA</th><th>PREÇO</th><th>ESTOQUE</th><th></th></tr></thead><tbody id="products-table"></tbody></table><div class="empty-state" id="products-empty"><span class="empty-icon">▤</span><strong>Seu catálogo está vazio</strong><p>Cadastre produtos para controlar o estoque e registrar vendas.</p></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="view-sales">
+        <div class="page-heading"><div><p class="eyebrow">CAIXA E MOVIMENTAÇÃO</p><h1>Vendas<span class="gold">.</span></h1><p class="subheading">Registre vendas e acompanhe o histórico do caixa.</p></div></div>
+        <div class="sales-layout">
+          <section class="panel sale-form-panel"><div class="panel-heading"><div><p class="eyebrow">NOVA TRANSAÇÃO</p><h2>Registrar venda</h2></div><span class="sale-step">01 <span>/ 01</span></span></div>
+            <form id="sale-form" class="form-grid">
+              <label class="field field-full">Cliente<select id="sale-client" required><option value="">Selecione um cliente</option></select></label>
+              <label class="field field-full">Produto<select id="sale-product" required><option value="">Selecione um produto</option></select></label>
+              <label class="field">Quantidade<input id="sale-quantity" type="number" min="1" step="1" value="1" required></label>
+              <div class="field"><span class="field-label">Valor unitário</span><div class="readonly-field" id="sale-unit-price">R$ 0,00</div></div>
+              <div class="sale-total field-full"><span>Total da venda</span><strong id="sale-total">R$ 0,00</strong></div>
+              <button class="button button-primary field-full" type="submit">Confirmar venda <span>→</span></button>
+            </form>
+          </section>
+          <aside class="sale-note"><span class="note-mark">✳</span><p class="eyebrow">DICA RÁPIDA</p><h3>Venda registrada,<br>estoque atualizado.</h3><p>Ao confirmar, a quantidade vendida será descontada automaticamente do estoque do produto.</p><div class="note-line"></div><small>Simples assim. Seu caixa sempre em dia.</small></aside>
+        </div>
+        <section class="panel history-panel"><div class="panel-toolbar"><div><p class="eyebrow">MOVIMENTAÇÃO</p><h2>Histórico de vendas</h2></div></div><div class="table-wrap"><table><thead><tr><th>CLIENTE</th><th>PRODUTO</th><th>QTD.</th><th>DATA</th><th class="align-right">TOTAL</th></tr></thead><tbody id="sales-table"></tbody></table><div class="empty-state" id="history-empty"><span class="empty-icon">↗</span><strong>Nenhuma venda registrada</strong><p>Suas vendas registradas aparecerão nesta lista.</p></div></div></section>
+      </section>
+    </main>
+
+    <dialog class="modal" id="client-modal">
+      <form method="dialog" class="modal-form" id="client-form">
+        <div class="modal-heading"><div><p class="eyebrow">SUA COMUNIDADE</p><h2 id="client-modal-title">Novo cliente</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
+        <input type="hidden" id="client-id">
+        <label class="field field-full">Nome completo<input id="client-name" type="text" placeholder="Ex.: João Silva" maxlength="80" required></label>
+        <label class="field field-full">Telefone<input id="client-phone" type="tel" placeholder="(11) 99999-9999" maxlength="20" required></label>
+        <label class="field field-full">E-mail <span class="optional">(opcional)</span><input id="client-email" type="email" placeholder="joao@email.com" maxlength="120"></label>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar cliente</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="product-modal">
+      <form method="dialog" class="modal-form" id="product-form">
+        <div class="modal-heading"><div><p class="eyebrow">CATÁLOGO DA BARBEARIA</p><h2 id="product-modal-title">Novo produto</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
+        <input type="hidden" id="product-id">
+        <label class="field field-full">Nome do produto<input id="product-name" type="text" placeholder="Ex.: Pomada modeladora" maxlength="80" required></label>
+        <label class="field field-full">Categoria<input id="product-category" type="text" placeholder="Ex.: Finalização" maxlength="40" required></label>
+        <div class="form-grid field-full"><label class="field">Preço (R$)<input id="product-price" type="number" min="0.01" step="0.01" placeholder="0,00" required></label><label class="field">Estoque<input id="product-stock" type="number" min="0" step="1" placeholder="0" required></label></div>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar produto</button></div>
+      </form>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
