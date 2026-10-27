@@ -133,8 +133,8 @@
       <form method="dialog" class="modal-form" id="product-form">
         <div class="modal-heading"><div><p class="eyebrow">CATÁLOGO DA BARBEARIA</p><h2 id="product-modal-title">Novo produto</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
         <input type="hidden" id="product-id">
-        <label class="field field-full">Nome do produto<input id="product-name" type="text" placeholder="Ex.: Pomada modeladora" maxlength="80" required></label>
-        <label class="field field-full">Categoria<input id="product-category" type="text" placeholder="Ex.: Finalização" maxlength="40" required></label>
+        <label class="field field-full">Nome<input id="product-name" type="text" placeholder="Ex.: Pomada modeladora ou Corte masculino" maxlength="80" required></label>
+        <div class="form-grid field-full"><label class="check-field"><input id="product-type" type="checkbox" checked><span><strong id="product-type-label">Produto</strong><small>Selecione para Produto; desmarque para Serviço.</small></span></label><label class="field">Categoria<input id="product-category" type="text" placeholder="Ex.: Finalização ou Corte" maxlength="80" required></label></div>
         <div class="form-grid field-full"><label class="field">Preço (R$)<input id="product-price" type="number" min="0.01" step="0.01" placeholder="0,00" required></label><label class="field">Estoque<input id="product-stock" type="number" min="0" step="1" placeholder="0" required></label></div>
         <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar produto</button></div>
       </form>

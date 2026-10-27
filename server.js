@@ -37,6 +37,20 @@ const server = http.createServer(async (request, response) => {
 async function start() {
   const port = Number(process.env.PORT || 8000);
   await pool.query("SELECT 1");
+  const [columns] = await pool.query(
+    `SELECT DATA_TYPE, COLUMN_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'item_type'`
+  );
+  if (columns.length === 0) {
+    await pool.query(
+      "ALTER TABLE products ADD COLUMN item_type CHAR(1) NOT NULL DEFAULT 'P' AFTER low_stock_threshold"
+    );
+  } else {
+    await pool.query("ALTER TABLE products MODIFY COLUMN item_type VARCHAR(10) NOT NULL DEFAULT 'P'");
+    await pool.query("UPDATE products SET item_type = 'S' WHERE item_type = 'service'");
+    await pool.query("UPDATE products SET item_type = 'P' WHERE item_type IN ('product', '')");
+    await pool.query("ALTER TABLE products MODIFY COLUMN item_type CHAR(1) NOT NULL DEFAULT 'P'");
+  }
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "0.0.0.0", resolve);

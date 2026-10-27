@@ -25,12 +25,14 @@ async function register({ clientId, productId, quantity, userId }) {
     if (!clients.length) fail(422, "O cliente selecionado não existe.");
 
     const [products] = await connection.execute(
-      "SELECT id, name, price, stock FROM products WHERE id = ? AND is_active = 1 FOR UPDATE",
+      "SELECT id, name, price, stock, item_type FROM products WHERE id = ? AND is_active = 1 FOR UPDATE",
       [productId]
     );
     const product = products[0];
-    if (!product) fail(422, "O produto selecionado não existe ou está inativo.");
-    if (Number(product.stock) < quantity) fail(409, "Estoque insuficiente para essa quantidade.");
+    if (!product) fail(422, "O item selecionado não existe ou está inativo.");
+    if (product.item_type === "P" && Number(product.stock) < quantity) {
+      fail(409, "Estoque insuficiente para essa quantidade.");
+    }
 
     const unitCents = Math.round(Number(product.price) * 100);
     const total = ((unitCents * quantity) / 100).toFixed(2);
@@ -43,14 +45,16 @@ async function register({ clientId, productId, quantity, userId }) {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [sale.insertId, productId, product.name, quantity, product.price, total]
     );
-    const stockAfter = Number(product.stock) - quantity;
-    await connection.execute("UPDATE products SET stock = ? WHERE id = ?", [stockAfter, productId]);
-    await connection.execute(
-      `INSERT INTO stock_movements
-       (product_id, user_id, sale_id, movement_type, quantity_change, stock_after, notes)
-       VALUES (?, ?, ?, 'sale', ?, ?, 'Saída por venda')`,
-      [productId, userId, sale.insertId, -quantity, stockAfter]
-    );
+    const stockAfter = product.item_type === "P" ? Number(product.stock) - quantity : 0;
+    if (product.item_type === "P") {
+      await connection.execute("UPDATE products SET stock = ? WHERE id = ?", [stockAfter, productId]);
+      await connection.execute(
+        `INSERT INTO stock_movements
+         (product_id, user_id, sale_id, movement_type, quantity_change, stock_after, notes)
+         VALUES (?, ?, ?, 'sale', ?, ?, 'Saída por venda')`,
+        [productId, userId, sale.insertId, -quantity, stockAfter]
+      );
+    }
     return { id: sale.insertId, total: Number(total), stock: stockAfter };
   });
 }

@@ -10,7 +10,7 @@ async function getSummary({ includeSales }) {
   const [[products]] = await pool.query(
     `SELECT COUNT(*) AS count, COALESCE(SUM(stock), 0) AS stock,
             COALESCE(SUM(stock <= low_stock_threshold), 0) AS low_stock
-     FROM products WHERE is_active = 1`
+     FROM products WHERE is_active = 1 AND item_type = 'P'`
   );
   const [recent] = includeSales
     ? await pool.query(

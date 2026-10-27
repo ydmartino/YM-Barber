@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS products (
   price DECIMAL(10,2) NOT NULL,
   stock INT UNSIGNED NOT NULL DEFAULT 0,
   low_stock_threshold INT UNSIGNED NOT NULL DEFAULT 5,
+  item_type CHAR(1) NOT NULL DEFAULT 'P',
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_by BIGINT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS products (
   KEY idx_products_name (name),
   KEY idx_products_active_stock (is_active, stock),
   CONSTRAINT chk_products_price_positive CHECK (price > 0),
+  CONSTRAINT chk_products_item_type CHECK (item_type IN ('P', 'S')),
   CONSTRAINT fk_products_created_by FOREIGN KEY (created_by)
     REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;

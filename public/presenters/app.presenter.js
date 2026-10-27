@@ -141,8 +141,9 @@ async function renderProducts() {
   const rows = products.filter((product) => `${product.name} ${product.category}`.toLocaleLowerCase("pt-BR").includes(query));
   $("#product-count").textContent = `${products.length} ${products.length === 1 ? "produto cadastrado" : "produtos cadastrados"}`;
   $("#products-table").innerHTML = rows.map((product) => {
-    const status = product.stock === 0 ? "out" : product.stock <= Number(product.low_stock_threshold) ? "low" : "";
-    const label = product.stock === 0 ? "Esgotado" : `${product.stock} em estoque`;
+    const isService = product.item_type === "S";
+    const status = isService ? "" : product.stock === 0 ? "out" : product.stock <= Number(product.low_stock_threshold) ? "low" : "";
+    const label = isService ? "Serviço" : product.stock === 0 ? "Esgotado" : `${product.stock} em estoque`;
     return `<tr><td class="cell-main">${escapeHtml(product.name)}</td><td>${escapeHtml(product.category)}</td><td class="money">${money(product.price)}</td><td><span class="status ${status}">${label}</span></td><td class="align-right">${can("products.manage") ? `<button class="row-action" data-edit-product="${product.id}" aria-label="Editar ${escapeHtml(product.name)}">Editar</button><button class="row-action" data-delete-product="${product.id}" aria-label="Excluir ${escapeHtml(product.name)}">Excluir</button>` : ""}</td></tr>`;
   }).join("");
   $("#products-empty").classList.toggle("visible", rows.length === 0);
@@ -157,7 +158,7 @@ function renderSaleOptions() {
   const selectedClient = clientSelect.value;
   const selectedProduct = productSelect.value;
   clientSelect.innerHTML = `<option value="">Selecione um cliente</option>${clients.map((client) => `<option value="${client.id}">${escapeHtml(client.name)}</option>`).join("")}`;
-  productSelect.innerHTML = `<option value="">Selecione um produto</option>${products.filter((product) => product.stock > 0).map((product) => `<option value="${product.id}">${escapeHtml(product.name)} — ${money(product.price)} (${product.stock} em estoque)</option>`).join("")}`;
+  productSelect.innerHTML = `<option value="">Selecione um produto ou serviço</option>${products.filter((product) => product.item_type === "S" || product.stock > 0).map((product) => `<option value="${product.id}">${escapeHtml(product.name)} — ${money(product.price)} (${product.item_type === "S" ? "Serviço" : `${product.stock} em estoque`})</option>`).join("")}`;
   clientSelect.value = selectedClient;
   productSelect.value = selectedProduct;
   updateSaleTotal();
@@ -213,16 +214,26 @@ function openClientModal(client) {
   $("#client-modal").showModal();
 }
 
+function toggleProductStock() {
+  const isProduct = $("#product-type").checked;
+  $("#product-type-label").textContent = isProduct ? "Produto" : "Serviço";
+  $("#product-stock").disabled = !isProduct;
+  $("#product-stock").required = isProduct;
+  if (!isProduct) $("#product-stock").value = "0";
+}
+
 function openProductModal(product) {
   $("#product-form").reset();
   $("#product-id").value = product?.id || "";
-  $("#product-modal-title").textContent = product ? "Editar produto" : "Novo produto";
+  $("#product-modal-title").textContent = product ? "Editar cadastro" : "Novo cadastro";
+  $("#product-type").checked = product ? product.item_type === "P" : true;
   if (product) {
     $("#product-name").value = product.name;
     $("#product-category").value = product.category;
     $("#product-price").value = product.price;
     $("#product-stock").value = product.stock;
   }
+  toggleProductStock();
   $("#product-modal").showModal();
 }
 
@@ -263,6 +274,7 @@ $("#new-product-button").addEventListener("click", () => openProductModal());
 $("#new-user-button").addEventListener("click", () => openUserModal());
 $("#client-search").addEventListener("input", () => renderClients().catch((error) => showToast(error.message, true)));
 $("#product-search").addEventListener("input", () => renderProducts().catch((error) => showToast(error.message, true)));
+$("#product-type").addEventListener("change", toggleProductStock);
 $("#sale-product").addEventListener("change", updateSaleTotal);
 $("#sale-quantity").addEventListener("input", updateSaleTotal);
 $("#user-is-admin").addEventListener("change", () => {
@@ -323,7 +335,8 @@ $("#product-form").addEventListener("submit", async (event) => {
     name: $("#product-name").value.trim(),
     category: $("#product-category").value.trim(),
     price: Number($("#product-price").value),
-    stock: Number($("#product-stock").value),
+    stock: $("#product-type").checked ? Number($("#product-stock").value) : 0,
+    item_type: $("#product-type").checked ? "P" : "S",
   };
   try {
     await api(id ? `products/${id}` : "products", { method: id ? "PUT" : "POST", body });
@@ -350,7 +363,7 @@ $("#sale-form").addEventListener("submit", async (event) => {
     if (can("products.view")) refreshes.push(renderProducts());
     if (can("dashboard.view")) refreshes.push(renderDashboard());
     await Promise.all(refreshes);
-    showToast("Venda registrada e estoque atualizado.");
+    showToast("Venda registrada com sucesso.");
   } catch (error) {
     showToast(error.message, true);
   }

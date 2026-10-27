@@ -5,11 +5,16 @@ const authPresenter = require("./auth.presenter");
 const { fail, positiveInteger, productPrice, productStock, requiredString } = require("../models/errors");
 
 function productInput(body, userId) {
+  if (body.item_type !== "P" && body.item_type !== "S") {
+    fail(422, "Selecione se o cadastro é um Produto ou um Serviço.");
+  }
+  const itemType = body.item_type;
   return {
     name: requiredString(body, "name", 120),
     category: requiredString(body, "category", 80),
     price: productPrice(body.price),
-    stock: productStock(body.stock),
+    stock: itemType === "S" ? 0 : productStock(body.stock),
+    itemType,
     userId,
   };
 }
