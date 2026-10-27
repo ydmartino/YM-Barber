@@ -51,6 +51,19 @@ async function start() {
     await pool.query("UPDATE products SET item_type = 'P' WHERE item_type IN ('product', '')");
     await pool.query("ALTER TABLE products MODIFY COLUMN item_type CHAR(1) NOT NULL DEFAULT 'P'");
   }
+  const [userCommissionColumns] = await pool.query(
+    "SELECT COUNT(*) AS count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'commission_percent'"
+  );
+  if (Number(userCommissionColumns[0].count) === 0) {
+    await pool.query("ALTER TABLE users ADD COLUMN commission_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER is_active");
+  }
+  const [saleCommissionColumns] = await pool.query(
+    "SELECT COUNT(*) AS count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sales' AND COLUMN_NAME = 'commission_amount'"
+  );
+  if (Number(saleCommissionColumns[0].count) === 0) {
+    await pool.query("ALTER TABLE sales ADD COLUMN commission_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER total");
+    await pool.query("ALTER TABLE sales ADD COLUMN commission_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00 AFTER commission_percent");
+  }
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "0.0.0.0", resolve);

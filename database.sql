@@ -11,13 +11,15 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   is_admin TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
+  commission_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email),
   KEY idx_users_active (is_active),
   CONSTRAINT chk_users_admin CHECK (is_admin IN (0, 1)),
-  CONSTRAINT chk_users_active CHECK (is_active IN (0, 1))
+  CONSTRAINT chk_users_active CHECK (is_active IN (0, 1)),
+  CONSTRAINT chk_users_commission CHECK (commission_percent >= 0 AND commission_percent <= 100)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS permissions (
@@ -86,6 +88,8 @@ CREATE TABLE IF NOT EXISTS sales (
   client_id BIGINT UNSIGNED NOT NULL,
   registered_by BIGINT UNSIGNED NULL,
   total DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  commission_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+  commission_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
   status ENUM('completed', 'cancelled') NOT NULL DEFAULT 'completed',
   notes VARCHAR(500) NULL,
   sold_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

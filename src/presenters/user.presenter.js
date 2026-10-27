@@ -4,6 +4,14 @@ const userModel = require("../models/user.model");
 const authPresenter = require("./auth.presenter");
 const { fail, optionalEmail, passwordHash, positiveInteger, requiredString } = require("../models/errors");
 
+function commissionPercent(body) {
+  const value = Number(body.commission_percent);
+  if (!Number.isFinite(value) || value < 0 || value > 100) {
+    fail(422, "A comissão deve estar entre 0% e 100%.");
+  }
+  return value.toFixed(2);
+}
+
 function permissionIds(body, isAdmin) {
   if (isAdmin) return [];
   if (!Array.isArray(body.permission_ids) || body.permission_ids.length === 0 || body.permission_ids.length > 30) {
@@ -26,6 +34,7 @@ async function handle({ user, method, id, body }) {
       email,
       passwordHash: passwordHash(body.password),
       isAdmin,
+      commissionPercent: commissionPercent(body),
       permissionIds: permissionIds(body, isAdmin),
       grantedBy: user.id,
     });
@@ -48,6 +57,7 @@ async function handle({ user, method, id, body }) {
       passwordHash: body.password ? passwordHash(body.password) : null,
       isAdmin,
       isActive,
+      commissionPercent: commissionPercent(body),
       permissionIds: permissionIds(body, isAdmin),
       grantedBy: user.id,
     });

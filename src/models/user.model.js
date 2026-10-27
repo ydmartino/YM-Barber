@@ -5,7 +5,7 @@ const { ApiError } = require("./errors");
 
 async function findByEmail(email) {
   const [rows] = await pool.execute(
-    "SELECT id, password_hash FROM users WHERE email = ? AND is_active = 1",
+    "SELECT id, password_hash, commission_percent FROM users WHERE email = ? AND is_active = 1",
     [email]
   );
   return rows[0] || null;
@@ -13,7 +13,7 @@ async function findByEmail(email) {
 
 async function findById(id) {
   const [rows] = await pool.execute(
-    "SELECT id, name, email, is_admin, is_active FROM users WHERE id = ?",
+    "SELECT id, name, email, is_admin, is_active, commission_percent FROM users WHERE id = ?",
     [id]
   );
   const user = rows[0];
@@ -32,13 +32,14 @@ async function findById(id) {
     email: user.email,
     is_admin: Boolean(user.is_admin),
     is_active: Boolean(user.is_active),
+    commission_percent: Number(user.commission_percent),
     permissions: permissions.map((permission) => permission.code),
   };
 }
 
 async function list() {
   const [users] = await pool.query(
-    "SELECT id, name, email, is_admin, is_active, created_at FROM users ORDER BY name"
+    "SELECT id, name, email, is_admin, is_active, commission_percent, created_at FROM users ORDER BY name"
   );
   const [grants] = await pool.query(
     `SELECT up.user_id, p.code FROM user_permissions up
@@ -55,6 +56,7 @@ async function list() {
     id: Number(user.id),
     is_admin: Boolean(user.is_admin),
     is_active: Boolean(user.is_active),
+    commission_percent: Number(user.commission_percent),
     permissions: permissionsByUser.get(Number(user.id)) || [],
   }));
 }
@@ -91,11 +93,11 @@ async function syncPermissions(connection, userId, permissionIds, grantedBy) {
   }
 }
 
-async function create({ name, email, passwordHash, isAdmin, permissionIds, grantedBy }) {
+async function create({ name, email, passwordHash, isAdmin, commissionPercent, permissionIds, grantedBy }) {
   return transaction(async (connection) => {
     const [result] = await connection.execute(
-      "INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, ?)",
-      [name, email, passwordHash, Number(isAdmin)]
+      "INSERT INTO users (name, email, password_hash, is_admin, commission_percent) VALUES (?, ?, ?, ?, ?)",
+      [name, email, passwordHash, Number(isAdmin), commissionPercent]
     );
     if (!isAdmin) await syncPermissions(connection, result.insertId, permissionIds, grantedBy);
     return { id: result.insertId };
@@ -109,6 +111,7 @@ async function update({
   passwordHash,
   isAdmin,
   isActive,
+  commissionPercent,
   permissionIds,
   grantedBy,
 }) {
@@ -128,8 +131,8 @@ async function update({
       }
     }
 
-    const assignments = ["name = ?", "email = ?", "is_admin = ?", "is_active = ?"];
-    const values = [name, email, Number(isAdmin), Number(isActive)];
+    const assignments = ["name = ?", "email = ?", "is_admin = ?", "is_active = ?", "commission_percent = ?"];
+    const values = [name, email, Number(isAdmin), Number(isActive), commissionPercent];
     if (passwordHash) {
       assignments.push("password_hash = ?");
       values.push(passwordHash);

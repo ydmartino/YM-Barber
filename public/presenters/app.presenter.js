@@ -4,6 +4,7 @@ let currentUser = null;
 let products = [];
 let clients = [];
 let permissionCatalog = [];
+let saleDraftItems = [];
 let toastTimeout;
 
 const $ = (selector) => document.querySelector(selector);
@@ -168,7 +169,7 @@ async function renderSales() {
   const data = can("sales.view") ? (await api("sales")).data : [];
   const rows = data.map((sale) => ({ ...sale, id: Number(sale.id), total: Number(sale.total), quantity: Number(sale.quantity) }));
   $("#sales-table").innerHTML = rows.map((sale) => `
-    <tr><td class="cell-main">${escapeHtml(sale.client_name)}</td><td>${escapeHtml(sale.product_name)}</td><td>${sale.quantity}</td><td>${dateLabel(sale.date)}</td><td class="align-right money">${money(sale.total)}</td></tr>
+    <tr><td class="cell-main">${escapeHtml(sale.client_name)}</td><td>${escapeHtml(sale.product_name)}</td><td>${sale.quantity}</td><td>${escapeHtml(sale.registered_by_name || "—")}</td><td>${money(Number(sale.commission_amount || 0))}</td><td>${dateLabel(sale.date)}</td><td class="align-right money">${money(sale.total)}</td></tr>
   `).join("");
   $("#history-empty").classList.toggle("visible", rows.length === 0);
   $("#history-panel").hidden = !can("sales.view");
@@ -190,16 +191,25 @@ async function renderUsers() {
   const { data } = await api("users");
   $("#user-count").textContent = `${data.length} ${data.length === 1 ? "usuário cadastrado" : "usuários cadastrados"}`;
   $("#users-table").innerHTML = data.map((user) => `
-    <tr><td class="cell-main">${escapeHtml(user.name)}</td><td>${escapeHtml(user.email)}</td><td><span class="role-label ${user.is_admin ? "" : "normal"}">${user.is_admin ? "Administrador" : "Usuário normal"}</span></td><td>${user.is_active ? '<span class="status">Ativo</span>' : '<span class="inactive-label">Inativo</span>'}</td><td class="align-right"><button class="row-action" data-edit-user="${user.id}" aria-label="Editar ${escapeHtml(user.name)}">Editar</button></td></tr>
+    <tr><td class="cell-main">${escapeHtml(user.name)}</td><td>${escapeHtml(user.email)}</td><td><span class="role-label ${user.is_admin ? "" : "normal"}">${user.is_admin ? "Administrador" : "Usuário normal"}</span></td><td>${Number(user.commission_percent || 0).toFixed(2)}%</td><td>${user.is_active ? '<span class="status">Ativo</span>' : '<span class="inactive-label">Inativo</span>'}</td><td class="align-right"><button class="row-action" data-edit-user="${user.id}" aria-label="Editar ${escapeHtml(user.name)}">Editar</button></td></tr>
   `).join("");
   $("#users-empty").classList.toggle("visible", data.length === 0);
 }
 
 function updateSaleTotal() {
   const product = products.find((item) => item.id === Number($("#sale-product").value));
-  const quantity = Math.max(1, Number($("#sale-quantity").value) || 1);
   $("#sale-unit-price").textContent = product ? money(product.price) : money(0);
-  $("#sale-total").textContent = product ? money(product.price * quantity) : money(0);
+  const total = saleDraftItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  $("#sale-total").textContent = money(total);
+}
+
+function renderSaleDraft() {
+  $("#sale-items").innerHTML = saleDraftItems.map((item, index) => `
+    <tr><td class="cell-main">${escapeHtml(item.name)}</td><td>${item.quantity}</td>
+    <td class="align-right money">${money(item.price * item.quantity)}</td>
+    <td class="align-right"><button type="button" class="row-action" data-remove-sale-item="${index}">Remover</button></td></tr>
+  `).join("");
+  updateSaleTotal();
 }
 
 function openClientModal(client) {
@@ -251,6 +261,7 @@ function openUserModal(user) {
     $("#user-email").value = user.email;
     $("#user-is-admin").checked = user.is_admin;
     $("#user-active").checked = user.is_active;
+    $("#user-commission").value = user.commission_percent ?? 0;
   }
   const selected = new Set(user?.permissions || []);
   $("#permission-list").innerHTML = permissionCatalog.map((permission) => `
@@ -277,6 +288,24 @@ $("#product-search").addEventListener("input", () => renderProducts().catch((err
 $("#product-type").addEventListener("change", toggleProductStock);
 $("#sale-product").addEventListener("change", updateSaleTotal);
 $("#sale-quantity").addEventListener("input", updateSaleTotal);
+$("#sale-add-item").addEventListener("click", () => {
+  const productId = Number($("#sale-product").value);
+  const quantity = Number($("#sale-quantity").value);
+  const product = products.find((item) => item.id === productId);
+  if (!product) return showToast("Selecione um produto ou serviço.", true);
+  if (!Number.isSafeInteger(quantity) || quantity < 1) return showToast("Informe uma quantidade válida.", true);
+  if (product.item_type === "P" && product.stock < quantity) return showToast(`Estoque insuficiente. Disponível: ${product.stock}.`, true);
+  const existingIndex = saleDraftItems.findIndex((item) => item.product_id === productId);
+  if (existingIndex >= 0) saleDraftItems[existingIndex].quantity += quantity;
+  else saleDraftItems.push({ product_id: productId, name: product.name, price: product.price, quantity });
+  renderSaleDraft();
+});
+$("#sale-items").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-sale-item]");
+  if (!button) return;
+  saleDraftItems.splice(Number(button.dataset.removeSaleItem), 1);
+  renderSaleDraft();
+});
 $("#user-is-admin").addEventListener("change", () => {
   $("#permission-picker").hidden = $("#user-is-admin").checked;
 });
@@ -348,17 +377,36 @@ $("#product-form").addEventListener("submit", async (event) => {
   }
 });
 
-$("#sale-form").addEventListener("submit", async (event) => {
+$("#sale-form").addEventListener("submit", (event) => {
   event.preventDefault();
+  const clientId = Number($("#sale-client").value);
+  const client = clients.find((item) => item.id === clientId);
+  if (!client) return showToast("Selecione um cliente.", true);
+  if (saleDraftItems.length === 0) return showToast("Adicione pelo menos um produto ou serviço.", true);
+  const total = saleDraftItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const commissionPercent = Number(currentUser.commission_percent || 0);
+  $("#sale-summary-content").innerHTML = `
+    <p><strong>Cliente:</strong> ${escapeHtml(client.name)}</p>
+    <p><strong>Registrado por:</strong> ${escapeHtml(currentUser.name)}</p>
+    <div class="table-wrap"><table><thead><tr><th>ITEM</th><th>QTD.</th><th class="align-right">SUBTOTAL</th></tr></thead>
+    <tbody>${saleDraftItems.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.quantity}</td><td class="align-right money">${money(item.price * item.quantity)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="sale-total"><span>Total</span><strong>${money(total)}</strong></p>
+    <p><strong>Comissão (${commissionPercent.toFixed(2)}%):</strong> ${money(total * commissionPercent / 100)}</p>`;
+  $("#sale-summary-modal").showModal();
+});
+
+$("#sale-confirm-button").addEventListener("click", async () => {
   const body = {
     client_id: Number($("#sale-client").value),
-    product_id: Number($("#sale-product").value),
-    quantity: Number($("#sale-quantity").value),
+    items: saleDraftItems.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
   };
   try {
     await api("sales", { method: "POST", body });
+    $("#sale-summary-modal").close();
     $("#sale-form").reset();
     $("#sale-quantity").value = "1";
+    saleDraftItems = [];
+    renderSaleDraft();
     const refreshes = [renderSales()];
     if (can("products.view")) refreshes.push(renderProducts());
     if (can("dashboard.view")) refreshes.push(renderDashboard());
@@ -379,6 +427,7 @@ $("#user-form").addEventListener("submit", async (event) => {
     password: $("#user-password").value,
     is_admin: $("#user-is-admin").checked,
     is_active: $("#user-active").checked,
+    commission_percent: Number($("#user-commission").value),
     permission_ids: Array.from($("#permission-list").querySelectorAll('input[type="checkbox"]:checked'))
       .map((input) => Number(input.value)),
   };

@@ -97,23 +97,23 @@
           <section class="panel sale-form-panel"><div class="panel-heading"><div><p class="eyebrow">NOVA TRANSAÇÃO</p><h2>Registrar venda</h2></div><span class="sale-step">01 <span>/ 01</span></span></div>
             <form id="sale-form" class="form-grid">
               <label class="field field-full">Cliente<select id="sale-client" required><option value="">Selecione um cliente</option></select></label>
-              <label class="field field-full">Produto<select id="sale-product" required><option value="">Selecione um produto</option></select></label>
-              <label class="field">Quantidade<input id="sale-quantity" type="number" min="1" step="1" value="1" required></label>
+              <label class="field field-full">Produto ou serviço<select id="sale-product"><option value="">Selecione um item</option></select></label>
+              <label class="field">Quantidade<input id="sale-quantity" type="number" min="1" step="1" value="1"></label>
               <div class="field"><span class="field-label">Valor unitário</span><div class="readonly-field" id="sale-unit-price">R$ 0,00</div></div>
+              <button class="button button-secondary field-full" type="button" id="sale-add-item">Adicionar item <span>＋</span></button>
+              <div class="field-full"><span class="field-label">Itens da venda</span><div class="table-wrap"><table><thead><tr><th>ITEM</th><th>QTD.</th><th class="align-right">SUBTOTAL</th><th></th></tr></thead><tbody id="sale-items"></tbody></table></div></div>
               <div class="sale-total field-full"><span>Total da venda</span><strong id="sale-total">R$ 0,00</strong></div>
-              <button class="button button-primary field-full" type="submit">Confirmar venda <span>→</span></button>
+              <button class="button button-primary field-full" type="submit">Revisar venda <span>→</span></button>
             </form>
           </section>
           <aside class="sale-note"><span class="note-mark">✳</span><p class="eyebrow">DICA RÁPIDA</p><h3>Venda registrada,<br>estoque atualizado.</h3><p>Ao confirmar, a quantidade vendida será descontada automaticamente do estoque do produto.</p><div class="note-line"></div><small>Simples assim. Seu caixa sempre em dia.</small></aside>
         </div>
-        <section class="panel history-panel" id="history-panel"><div class="panel-toolbar"><div><p class="eyebrow">MOVIMENTAÇÃO</p><h2>Histórico de vendas</h2></div></div><div class="table-wrap"><table><thead><tr><th>CLIENTE</th><th>PRODUTO</th><th>QTD.</th><th>DATA</th><th class="align-right">TOTAL</th></tr></thead><tbody id="sales-table"></tbody></table><div class="empty-state" id="history-empty"><span class="empty-icon">↗</span><strong>Nenhuma venda registrada</strong><p>Suas vendas registradas aparecerão nesta lista.</p></div></div></section>
-      </section>
+        <section class="panel history-panel" id="history-panel"><div class="panel-toolbar"><div><p class="eyebrow">MOVIMENTAÇÃO</p><h2>Histórico de vendas</h2></div></div><div class="table-wrap"><table>        <thead><tr><th>CLIENTE</th><th>PRODUTO/SERVIÇO</th><th>QTD.</th><th>USUÁRIO</th><th>COMISSÃO</th><th>DATA</th><th class="align-right">TOTAL</th></tr></thead><tbody id="sales-table"></tbody></table><div class="empty-state" id="history-empty"><span class="empty-icon">↗</span><strong>Nenhuma venda registrada</strong><p>Suas vendas registradas aparecerão nesta lista.</p></div></div></section>      </section>
       <section class="page" id="view-users">
         <div class="page-heading"><div><p class="eyebrow">ACESSO AO SISTEMA</p><h1>Usuários<span class="gold">.</span></h1><p class="subheading">Gerencie contas, funções e permissões de acesso.</p></div><button class="button button-primary" id="new-user-button"><span>＋</span> Novo usuário</button></div>
         <div class="panel">
           <div class="panel-toolbar"><div><h2>Contas cadastradas</h2><p id="user-count" class="subheading">0 usuários</p></div></div>
-          <div class="table-wrap"><table><thead><tr><th>NOME</th><th>E-MAIL</th><th>PERFIL</th><th>STATUS</th><th></th></tr></thead><tbody id="users-table"></tbody></table><div class="empty-state" id="users-empty"><span class="empty-icon">♧</span><strong>Nenhum usuário cadastrado</strong><p>Cadastre os usuários que terão acesso ao sistema.</p></div></div>
-        </div>
+          <div class="table-wrap"><table>          <thead><tr><th>NOME</th><th>E-MAIL</th><th>PERFIL</th><th>COMISSÃO</th><th>STATUS</th><th></th></tr></thead><tbody id="users-table"></tbody></table><div class="empty-state" id="users-empty"><span class="empty-icon">♧</span><strong>Nenhum usuário cadastrado</strong><p>Cadastre os usuários que terão acesso ao sistema.</p></div></div>        </div>
       </section>
     </main>
     </div>
@@ -146,12 +146,20 @@
         <label class="field field-full">Nome completo<input id="user-name" type="text" maxlength="120" required></label>
         <label class="field field-full">E-mail<input id="user-email" type="email" maxlength="190" autocomplete="off" required></label>
         <label class="field field-full">Senha <span class="optional" id="password-hint">(mínimo 12 caracteres)</span><input id="user-password" type="password" minlength="12" maxlength="200" autocomplete="new-password"></label>
+        <label class="field field-full">Percentual de comissão (%)<input id="user-commission" type="number" min="0" max="100" step="0.01" value="0" required></label>
         <label class="check-field"><input id="user-is-admin" type="checkbox"><span><strong>Administrador</strong><small>Acesso completo a todos os módulos.</small></span></label>
         <div class="field field-full" id="permission-picker"><span class="field-label">Permissões do usuário</span><div class="permission-list" id="permission-list"></div></div>
         <label class="check-field" id="user-active-wrap"><input id="user-active" type="checkbox" checked><span><strong>Conta ativa</strong><small>Usuário pode entrar no sistema.</small></span></label>
         <p class="form-error" id="user-form-error" role="alert"></p>
         <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar usuário</button></div>
       </form>
+    </dialog>
+    <dialog class="modal" id="sale-summary-modal">
+      <div class="modal-form">
+        <div class="modal-heading"><div><p class="eyebrow">CONFIRMAR TRANSAÇÃO</p><h2>Resumo da venda</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
+        <div id="sale-summary-content"></div>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Voltar</button><button type="button" class="button button-primary" id="sale-confirm-button">Confirmar venda</button></div>
+      </div>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>

@@ -12,10 +12,10 @@ async function handle({ user, method, id, body }) {
   authPresenter.requirePermission(user, "sales.create");
   if (method !== "POST" || id) fail(405, "Método não permitido.");
 
+  if (!Array.isArray(body.items)) fail(422, "Adicione pelo menos um produto ou serviço à venda.");
   return saleModel.register({
     clientId: positiveInteger(body.client_id, "Selecione um cliente válido."),
-    productId: positiveInteger(body.product_id, "Selecione um produto válido."),
-    quantity: positiveInteger(body.quantity, "Informe uma quantidade válida."),
+    items: body.items,
     userId: user.id,
   });
 }
