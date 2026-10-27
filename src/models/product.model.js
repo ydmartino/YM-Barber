@@ -4,17 +4,17 @@ const { pool, transaction } = require("./database.model");
 
 async function list() {
   const [rows] = await pool.query(
-    `SELECT id, name, category, price, stock, low_stock_threshold, item_type
+    `SELECT id, name, category, price, discount_percent, stock, low_stock_threshold, item_type
      FROM products WHERE is_active = 1 ORDER BY name LIMIT 500`
   );
   return rows;
 }
 
-async function create({ name, category, price, stock, itemType, userId }) {
+async function create({ name, category, price, discountPercent, stock, itemType, userId }) {
   return transaction(async (connection) => {
     const [result] = await connection.execute(
-      "INSERT INTO products (name, category, price, stock, item_type, created_by) VALUES (?, ?, ?, ?, ?, ?)",
-      [name, category, price, stock, itemType, userId]
+      "INSERT INTO products (name, category, price, discount_percent, stock, item_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [name, category, price, discountPercent, stock, itemType, userId]
     );
     if (itemType === "P" && stock > 0) {
       await connection.execute(
@@ -28,7 +28,7 @@ async function create({ name, category, price, stock, itemType, userId }) {
   });
 }
 
-async function update(id, { name, category, price, stock, itemType, userId }) {
+async function update(id, { name, category, price, discountPercent, stock, itemType, userId }) {
   return transaction(async (connection) => {
     const [rows] = await connection.execute(
       "SELECT stock, item_type FROM products WHERE id = ? AND is_active = 1 FOR UPDATE",
@@ -37,8 +37,8 @@ async function update(id, { name, category, price, stock, itemType, userId }) {
     if (!rows.length) return false;
     const previousStock = Number(rows[0].stock);
     await connection.execute(
-      "UPDATE products SET name = ?, category = ?, price = ?, stock = ?, item_type = ? WHERE id = ?",
-      [name, category, price, stock, itemType, id]
+      "UPDATE products SET name = ?, category = ?, price = ?, discount_percent = ?, stock = ?, item_type = ? WHERE id = ?",
+      [name, category, price, discountPercent, stock, itemType, id]
     );
     const quantityChange = stock - previousStock;
     if (quantityChange !== 0) {

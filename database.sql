@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS products (
   name VARCHAR(120) NOT NULL,
   category VARCHAR(80) NOT NULL,
   price DECIMAL(10,2) NOT NULL,
+  discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00,
   stock INT UNSIGNED NOT NULL DEFAULT 0,
   low_stock_threshold INT UNSIGNED NOT NULL DEFAULT 5,
   item_type CHAR(1) NOT NULL DEFAULT 'P',
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS products (
   KEY idx_products_name (name),
   KEY idx_products_active_stock (is_active, stock),
   CONSTRAINT chk_products_price_positive CHECK (price > 0),
+  CONSTRAINT chk_products_discount CHECK (discount_percent >= 0 AND discount_percent <= 100),
   CONSTRAINT chk_products_item_type CHECK (item_type IN ('P', 'S')),
   CONSTRAINT fk_products_created_by FOREIGN KEY (created_by)
     REFERENCES users (id) ON DELETE SET NULL
@@ -111,6 +113,8 @@ CREATE TABLE IF NOT EXISTS sale_items (
   product_name VARCHAR(120) NOT NULL,
   quantity INT UNSIGNED NOT NULL,
   unit_price DECIMAL(10,2) NOT NULL,
+  discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+  discount_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
   subtotal DECIMAL(14,2) NOT NULL,
   PRIMARY KEY (id),
   KEY idx_sale_items_sale (sale_id),

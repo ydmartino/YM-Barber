@@ -43,6 +43,10 @@ async function register({ clientId, items, userId }) {
     for (const item of items) {
       const productId = Number(item.product_id);
       const quantity = Number(item.quantity);
+      const discountPercent = Number(item.discount_percent ?? 0);
+      if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+        fail(422, "O desconto deve estar entre 0% e 100%.");
+      }
       if (!Number.isSafeInteger(productId) || productId < 1 || !Number.isSafeInteger(quantity) || quantity < 1) {
         fail(422, "Informe itens e quantidades válidos.");
       }
@@ -56,9 +60,11 @@ async function register({ clientId, items, userId }) {
         fail(409, `Estoque insuficiente para ${product.name}.`);
       }
       const unitCents = Math.round(Number(product.price) * 100);
-      const subtotalCents = unitCents * quantity;
+      const grossCents = unitCents * quantity;
+      const discountAmountCents = Math.round(grossCents * discountPercent / 100);
+      const subtotalCents = grossCents - discountAmountCents;
       totalCents += subtotalCents;
-      normalizedItems.push({ product, quantity, subtotalCents });
+      normalizedItems.push({ product, quantity, discountPercent, discountAmountCents, subtotalCents });
     }
 
     const total = (totalCents / 100).toFixed(2);
@@ -70,12 +76,14 @@ async function register({ clientId, items, userId }) {
     );
 
     for (const item of normalizedItems) {
-      const { product, quantity, subtotalCents } = item;
+      const { product, quantity, discountPercent, discountAmountCents, subtotalCents } = item;
+      const discountAmount = (discountAmountCents / 100).toFixed(2);
       const subtotal = (subtotalCents / 100).toFixed(2);
       await connection.execute(
-        `INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [sale.insertId, product.id, product.name, quantity, product.price, subtotal]
+        `INSERT INTO sale_items
+         (sale_id, product_id, product_name, quantity, unit_price, discount_percent, discount_amount, subtotal)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [sale.insertId, product.id, product.name, quantity, product.price, discountPercent.toFixed(2), discountAmount, subtotal]
       );
       if (product.item_type === "P") {
         const stockAfter = Number(product.stock) - quantity;

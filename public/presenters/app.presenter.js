@@ -137,7 +137,7 @@ async function renderClients() {
 
 async function renderProducts() {
   const { data } = await api("products");
-  products = data.map((product) => ({ ...product, id: Number(product.id), price: Number(product.price), stock: Number(product.stock) }));
+  products = data.map((product) => ({ ...product, id: Number(product.id), price: Number(product.price), discount_percent: Number(product.discount_percent || 0), stock: Number(product.stock) }));
   const query = $("#product-search").value.trim().toLocaleLowerCase("pt-BR");
   const rows = products.filter((product) => `${product.name} ${product.category}`.toLocaleLowerCase("pt-BR").includes(query));
   $("#product-count").textContent = `${products.length} ${products.length === 1 ? "produto cadastrado" : "produtos cadastrados"}`;
@@ -178,7 +178,7 @@ async function renderSales() {
   if (canCreate) {
     const [clientResult, productResult] = await Promise.all([api("clients"), api("products")]);
     clients = clientResult.data.map((client) => ({ ...client, id: Number(client.id) }));
-    products = productResult.data.map((product) => ({ ...product, id: Number(product.id), price: Number(product.price), stock: Number(product.stock) }));
+    products = productResult.data.map((product) => ({ ...product, id: Number(product.id), price: Number(product.price), discount_percent: Number(product.discount_percent || 0), stock: Number(product.stock) }));
     renderSaleOptions();
   }
 }
@@ -196,17 +196,23 @@ async function renderUsers() {
   $("#users-empty").classList.toggle("visible", data.length === 0);
 }
 
+function saleItemSubtotal(item) {
+  const gross = item.price * item.quantity;
+  return gross * (1 - item.discount_percent / 100);
+}
+
 function updateSaleTotal() {
   const product = products.find((item) => item.id === Number($("#sale-product").value));
   $("#sale-unit-price").textContent = product ? money(product.price) : money(0);
-  const total = saleDraftItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = saleDraftItems.reduce((sum, item) => sum + saleItemSubtotal(item), 0);
   $("#sale-total").textContent = money(total);
 }
 
 function renderSaleDraft() {
   $("#sale-items").innerHTML = saleDraftItems.map((item, index) => `
     <tr><td class="cell-main">${escapeHtml(item.name)}</td><td>${item.quantity}</td>
-    <td class="align-right money">${money(item.price * item.quantity)}</td>
+    <td><input type="number" min="0" max="100" step="0.01" value="${item.discount_percent}" data-sale-item-discount="${index}" aria-label="Desconto de ${escapeHtml(item.name)}"></td>
+    <td class="align-right money">${money(saleItemSubtotal(item))}</td>
     <td class="align-right"><button type="button" class="row-action" data-remove-sale-item="${index}">Remover</button></td></tr>
   `).join("");
   updateSaleTotal();
@@ -241,6 +247,7 @@ function openProductModal(product) {
     $("#product-name").value = product.name;
     $("#product-category").value = product.category;
     $("#product-price").value = product.price;
+    $("#product-discount").value = product.discount_percent ?? 0;
     $("#product-stock").value = product.stock;
   }
   toggleProductStock();
@@ -286,7 +293,11 @@ $("#new-user-button").addEventListener("click", () => openUserModal());
 $("#client-search").addEventListener("input", () => renderClients().catch((error) => showToast(error.message, true)));
 $("#product-search").addEventListener("input", () => renderProducts().catch((error) => showToast(error.message, true)));
 $("#product-type").addEventListener("change", toggleProductStock);
-$("#sale-product").addEventListener("change", updateSaleTotal);
+$("#sale-product").addEventListener("change", () => {
+  const product = products.find((item) => item.id === Number($("#sale-product").value));
+  $("#sale-discount").value = product ? product.discount_percent ?? 0 : 0;
+  updateSaleTotal();
+});
 $("#sale-quantity").addEventListener("input", updateSaleTotal);
 $("#sale-add-item").addEventListener("click", () => {
   const productId = Number($("#sale-product").value);
@@ -297,7 +308,18 @@ $("#sale-add-item").addEventListener("click", () => {
   if (product.item_type === "P" && product.stock < quantity) return showToast(`Estoque insuficiente. Disponível: ${product.stock}.`, true);
   const existingIndex = saleDraftItems.findIndex((item) => item.product_id === productId);
   if (existingIndex >= 0) saleDraftItems[existingIndex].quantity += quantity;
-  else saleDraftItems.push({ product_id: productId, name: product.name, price: product.price, quantity });
+  else saleDraftItems.push({ product_id: productId, name: product.name, price: product.price, quantity, discount_percent: Number($("#sale-discount").value || 0) });
+  renderSaleDraft();
+});
+$("#sale-items").addEventListener("change", (event) => {
+  const input = event.target.closest("[data-sale-item-discount]");
+  if (!input) return;
+  const discount = Number(input.value);
+  if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+    input.value = saleDraftItems[Number(input.dataset.saleItemDiscount)].discount_percent;
+    return showToast("O desconto deve estar entre 0% e 100%.", true);
+  }
+  saleDraftItems[Number(input.dataset.saleItemDiscount)].discount_percent = discount;
   renderSaleDraft();
 });
 $("#sale-items").addEventListener("click", (event) => {
@@ -364,6 +386,7 @@ $("#product-form").addEventListener("submit", async (event) => {
     name: $("#product-name").value.trim(),
     category: $("#product-category").value.trim(),
     price: Number($("#product-price").value),
+    discount_percent: Number($("#product-discount").value),
     stock: $("#product-type").checked ? Number($("#product-stock").value) : 0,
     item_type: $("#product-type").checked ? "P" : "S",
   };
@@ -383,13 +406,13 @@ $("#sale-form").addEventListener("submit", (event) => {
   const client = clients.find((item) => item.id === clientId);
   if (!client) return showToast("Selecione um cliente.", true);
   if (saleDraftItems.length === 0) return showToast("Adicione pelo menos um produto ou serviço.", true);
-  const total = saleDraftItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = saleDraftItems.reduce((sum, item) => sum + saleItemSubtotal(item), 0);
   const commissionPercent = Number(currentUser.commission_percent || 0);
   $("#sale-summary-content").innerHTML = `
     <p><strong>Cliente:</strong> ${escapeHtml(client.name)}</p>
     <p><strong>Registrado por:</strong> ${escapeHtml(currentUser.name)}</p>
-    <div class="table-wrap"><table><thead><tr><th>ITEM</th><th>QTD.</th><th class="align-right">SUBTOTAL</th></tr></thead>
-    <tbody>${saleDraftItems.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.quantity}</td><td class="align-right money">${money(item.price * item.quantity)}</td></tr>`).join("")}</tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>ITEM</th><th>QTD.</th><th>DESCONTO</th><th class="align-right">SUBTOTAL</th></tr></thead>
+    <tbody>${saleDraftItems.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${item.quantity}</td><td>${item.discount_percent.toFixed ? item.discount_percent.toFixed(2) : item.discount_percent}%</td><td class="align-right money">${money(saleItemSubtotal(item))}</td></tr>`).join("")}</tbody></table></div>
     <p class="sale-total"><span>Total</span><strong>${money(total)}</strong></p>
     <p><strong>Comissão (${commissionPercent.toFixed(2)}%):</strong> ${money(total * commissionPercent / 100)}</p>`;
   $("#sale-summary-modal").showModal();
@@ -398,7 +421,7 @@ $("#sale-form").addEventListener("submit", (event) => {
 $("#sale-confirm-button").addEventListener("click", async () => {
   const body = {
     client_id: Number($("#sale-client").value),
-    items: saleDraftItems.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+    items: saleDraftItems.map((item) => ({ product_id: item.product_id, quantity: item.quantity, discount_percent: item.discount_percent })),
   };
   try {
     await api("sales", { method: "POST", body });

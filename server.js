@@ -64,6 +64,19 @@ async function start() {
     await pool.query("ALTER TABLE sales ADD COLUMN commission_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER total");
     await pool.query("ALTER TABLE sales ADD COLUMN commission_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00 AFTER commission_percent");
   }
+  const [productDiscountColumns] = await pool.query(
+    "SELECT COUNT(*) AS count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'discount_percent'"
+  );
+  if (Number(productDiscountColumns[0].count) === 0) {
+    await pool.query("ALTER TABLE products ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER price");
+  }
+  const [saleItemDiscountColumns] = await pool.query(
+    "SELECT COUNT(*) AS count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sale_items' AND COLUMN_NAME = 'discount_amount'"
+  );
+  if (Number(saleItemDiscountColumns[0].count) === 0) {
+    await pool.query("ALTER TABLE sale_items ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER unit_price");
+    await pool.query("ALTER TABLE sale_items ADD COLUMN discount_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00 AFTER discount_percent");
+  }
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "0.0.0.0", resolve);

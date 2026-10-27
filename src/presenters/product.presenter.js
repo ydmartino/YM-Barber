@@ -9,10 +9,15 @@ function productInput(body, userId) {
     fail(422, "Selecione se o cadastro é um Produto ou um Serviço.");
   }
   const itemType = body.item_type;
+  const discountPercent = Number(body.discount_percent);
+  if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+    fail(422, "O desconto deve estar entre 0% e 100%.");
+  }
   return {
     name: requiredString(body, "name", 120),
     category: requiredString(body, "category", 80),
     price: productPrice(body.price),
+    discountPercent: discountPercent.toFixed(2),
     stock: itemType === "S" ? 0 : productStock(body.stock),
     itemType,
     userId,
