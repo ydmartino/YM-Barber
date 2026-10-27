@@ -70,13 +70,44 @@ async function start() {
   if (Number(productDiscountColumns[0].count) === 0) {
     await pool.query("ALTER TABLE products ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER price");
   }
-  const [saleItemDiscountColumns] = await pool.query(
+  const [saleItemPercentColumns] = await pool.query(
+    "SELECT COUNT(*) AS count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sale_items' AND COLUMN_NAME = 'discount_percent'"
+  );
+  if (Number(saleItemPercentColumns[0].count) === 0) {
+    await pool.query("ALTER TABLE sale_items ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER unit_price");
+  }
+  const [saleItemAmountColumns] = await pool.query(
     "SELECT COUNT(*) AS count FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sale_items' AND COLUMN_NAME = 'discount_amount'"
   );
-  if (Number(saleItemDiscountColumns[0].count) === 0) {
-    await pool.query("ALTER TABLE sale_items ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER unit_price");
+  if (Number(saleItemAmountColumns[0].count) === 0) {
     await pool.query("ALTER TABLE sale_items ADD COLUMN discount_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00 AFTER discount_percent");
   }
+  await pool.query("DROP TRIGGER IF EXISTS trg_sale_items_limit_discount_insert");
+  await pool.query(`CREATE TRIGGER trg_sale_items_limit_discount_insert BEFORE INSERT ON sale_items FOR EACH ROW
+    BEGIN
+      DECLARE configured_discount DECIMAL(5,2);
+      DECLARE maximum_allowed DECIMAL(5,2);
+      IF NEW.product_id IS NOT NULL THEN
+        SELECT discount_percent INTO configured_discount FROM products WHERE id = NEW.product_id;
+        SET maximum_allowed = GREATEST(20.00, COALESCE(configured_discount, 0));
+        IF NEW.discount_percent < 0 OR NEW.discount_percent > maximum_allowed THEN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Desconto inválido ou acima do limite permitido para este produto ou serviço.';
+        END IF;
+      END IF;
+    END`);
+  await pool.query("DROP TRIGGER IF EXISTS trg_sale_items_limit_discount_update");
+  await pool.query(`CREATE TRIGGER trg_sale_items_limit_discount_update BEFORE UPDATE ON sale_items FOR EACH ROW
+    BEGIN
+      DECLARE configured_discount DECIMAL(5,2);
+      DECLARE maximum_allowed DECIMAL(5,2);
+      IF NEW.product_id IS NOT NULL THEN
+        SELECT discount_percent INTO configured_discount FROM products WHERE id = NEW.product_id;
+        SET maximum_allowed = GREATEST(20.00, COALESCE(configured_discount, 0));
+        IF NEW.discount_percent < 0 OR NEW.discount_percent > maximum_allowed THEN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Desconto inválido ou acima do limite permitido para este produto ou serviço.';
+        END IF;
+      END IF;
+    END`);
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "0.0.0.0", resolve);

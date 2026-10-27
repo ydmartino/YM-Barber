@@ -99,7 +99,7 @@
               <label class="field field-full">Cliente<select id="sale-client" required><option value="">Selecione um cliente</option></select></label>
               <label class="field field-full">Produto ou serviço<select id="sale-product"><option value="">Selecione um item</option></select></label>
               <label class="field">Quantidade<input id="sale-quantity" type="number" min="1" step="1" value="1"></label>
-              <label class="field">Desconto (%)<input id="sale-discount" type="number" min="0" max="100" step="0.01" value="0"></label>
+              <label class="field">Desconto (%)<input id="sale-discount" type="number" min="0" max="20" step="0.01" value="0"></label>
               <div class="field"><span class="field-label">Valor unitário</span><div class="readonly-field" id="sale-unit-price">R$ 0,00</div></div>
               <button class="button button-secondary field-full" type="button" id="sale-add-item">Adicionar item <span>＋</span></button>
               <div class="field-full"><span class="field-label">Itens da venda</span><div class="table-wrap"><table>              <thead><tr><th>ITEM</th><th>QTD.</th><th>DESCONTO %</th><th class="align-right">SUBTOTAL</th><th></th></tr></thead><tbody id="sale-items"></tbody></table></div></div>              <div class="sale-total field-full"><span>Total da venda</span><strong id="sale-total">R$ 0,00</strong></div>

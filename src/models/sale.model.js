@@ -51,11 +51,16 @@ async function register({ clientId, items, userId }) {
         fail(422, "Informe itens e quantidades válidos.");
       }
       const [products] = await connection.execute(
-        "SELECT id, name, price, stock, item_type FROM products WHERE id = ? AND is_active = 1 FOR UPDATE",
+        "SELECT id, name, price, discount_percent, stock, item_type FROM products WHERE id = ? AND is_active = 1 FOR UPDATE",
         [productId]
       );
       const product = products[0];
       if (!product) fail(422, "Um item selecionado não existe ou está inativo.");
+      const productDiscount = Number(product.discount_percent || 0);
+      const maximumAllowed = Math.max(20, productDiscount);
+      if (discountPercent > maximumAllowed) {
+        fail(422, `Desconto máximo permitido para este item: ${maximumAllowed.toFixed(2)}%.`);
+      }
       if (product.item_type === "P" && Number(product.stock) < quantity) {
         fail(409, `Estoque insuficiente para ${product.name}.`);
       }

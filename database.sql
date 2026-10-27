@@ -127,6 +127,46 @@ CREATE TABLE IF NOT EXISTS sale_items (
     REFERENCES products (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+DROP TRIGGER IF EXISTS trg_sale_items_limit_discount_insert;
+DELIMITER //
+CREATE TRIGGER trg_sale_items_limit_discount_insert
+BEFORE INSERT ON sale_items
+FOR EACH ROW
+BEGIN
+  DECLARE configured_discount DECIMAL(5,2);
+  DECLARE maximum_allowed DECIMAL(5,2);
+  IF NEW.product_id IS NOT NULL THEN
+    SELECT discount_percent INTO configured_discount
+    FROM products WHERE id = NEW.product_id;
+    SET maximum_allowed = GREATEST(20.00, COALESCE(configured_discount, 0));
+    IF NEW.discount_percent < 0 OR NEW.discount_percent > maximum_allowed THEN
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Desconto inválido ou acima do limite permitido para este produto ou serviço.';
+    END IF;
+  END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_sale_items_limit_discount_update;
+DELIMITER //
+CREATE TRIGGER trg_sale_items_limit_discount_update
+BEFORE UPDATE ON sale_items
+FOR EACH ROW
+BEGIN
+  DECLARE configured_discount DECIMAL(5,2);
+  DECLARE maximum_allowed DECIMAL(5,2);
+  IF NEW.product_id IS NOT NULL THEN
+    SELECT discount_percent INTO configured_discount
+    FROM products WHERE id = NEW.product_id;
+    SET maximum_allowed = GREATEST(20.00, COALESCE(configured_discount, 0));
+    IF NEW.discount_percent < 0 OR NEW.discount_percent > maximum_allowed THEN
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Desconto inválido ou acima do limite permitido para este produto ou serviço.';
+    END IF;
+  END IF;
+END//
+DELIMITER ;
+
 CREATE TABLE IF NOT EXISTS stock_movements (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   product_id BIGINT UNSIGNED NOT NULL,

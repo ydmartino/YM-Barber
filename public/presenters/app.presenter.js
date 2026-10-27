@@ -208,13 +208,21 @@ function updateSaleTotal() {
   $("#sale-total").textContent = money(total);
 }
 
+function getSaleDiscountMaximum(productId) {
+  const product = products.find((item) => item.id === Number(productId));
+  return Math.max(20, Number(product?.discount_percent || 0));
+}
+
 function renderSaleDraft() {
-  $("#sale-items").innerHTML = saleDraftItems.map((item, index) => `
+  $("#sale-items").innerHTML = saleDraftItems.map((item, index) => {
+    const maximum = getSaleDiscountMaximum(item.product_id);
+    return `
     <tr><td class="cell-main">${escapeHtml(item.name)}</td><td>${item.quantity}</td>
-    <td><input type="number" min="0" max="100" step="0.01" value="${item.discount_percent}" data-sale-item-discount="${index}" aria-label="Desconto de ${escapeHtml(item.name)}"></td>
+    <td><input type="number" min="0" max="${maximum}" step="0.01" value="${item.discount_percent}" data-sale-item-discount="${index}" aria-label="Desconto de ${escapeHtml(item.name)}"></td>
     <td class="align-right money">${money(saleItemSubtotal(item))}</td>
     <td class="align-right"><button type="button" class="row-action" data-remove-sale-item="${index}">Remover</button></td></tr>
-  `).join("");
+  `;
+  }).join("");
   updateSaleTotal();
 }
 
@@ -295,7 +303,9 @@ $("#product-search").addEventListener("input", () => renderProducts().catch((err
 $("#product-type").addEventListener("change", toggleProductStock);
 $("#sale-product").addEventListener("change", () => {
   const product = products.find((item) => item.id === Number($("#sale-product").value));
-  $("#sale-discount").value = product ? product.discount_percent ?? 0 : 0;
+  const maximum = product ? Math.max(20, Number(product.discount_percent || 0)) : 20;
+  $("#sale-discount").max = String(maximum);
+  $("#sale-discount").value = product ? Math.min(Number(product.discount_percent || 0), maximum) : 0;
   updateSaleTotal();
 });
 $("#sale-quantity").addEventListener("input", updateSaleTotal);
@@ -306,20 +316,34 @@ $("#sale-add-item").addEventListener("click", () => {
   if (!product) return showToast("Selecione um produto ou serviço.", true);
   if (!Number.isSafeInteger(quantity) || quantity < 1) return showToast("Informe uma quantidade válida.", true);
   if (product.item_type === "P" && product.stock < quantity) return showToast(`Estoque insuficiente. Disponível: ${product.stock}.`, true);
+  const requestedDiscount = Number($("#sale-discount").value || 0);
+  const maximum = Math.max(20, Number(product.discount_percent || 0));
+  if (!Number.isFinite(requestedDiscount) || requestedDiscount < 0 || requestedDiscount > maximum) {
+    return showToast(`O desconto máximo permitido para este item é ${maximum.toFixed(2)}%.`, true);
+  }
   const existingIndex = saleDraftItems.findIndex((item) => item.product_id === productId);
-  if (existingIndex >= 0) saleDraftItems[existingIndex].quantity += quantity;
-  else saleDraftItems.push({ product_id: productId, name: product.name, price: product.price, quantity, discount_percent: Number($("#sale-discount").value || 0) });
+  if (existingIndex >= 0) {
+    if (Number(saleDraftItems[existingIndex].discount_percent) !== requestedDiscount) {
+      return showToast("Para alterar o desconto deste item, edite diretamente na tabela da venda.", true);
+    }
+    saleDraftItems[existingIndex].quantity += quantity;
+  } else {
+    saleDraftItems.push({ product_id: productId, name: product.name, price: product.price, quantity, discount_percent: requestedDiscount });
+  }
   renderSaleDraft();
 });
 $("#sale-items").addEventListener("change", (event) => {
   const input = event.target.closest("[data-sale-item-discount]");
   if (!input) return;
+  const index = Number(input.dataset.saleItemDiscount);
   const discount = Number(input.value);
-  if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
-    input.value = saleDraftItems[Number(input.dataset.saleItemDiscount)].discount_percent;
-    return showToast("O desconto deve estar entre 0% e 100%.", true);
+  const item = saleDraftItems[index];
+  const maximum = getSaleDiscountMaximum(item.product_id);
+  if (!Number.isFinite(discount) || discount < 0 || discount > maximum) {
+    input.value = item.discount_percent;
+    return showToast(`O desconto máximo permitido é ${maximum.toFixed(2)}%.`, true);
   }
-  saleDraftItems[Number(input.dataset.saleItemDiscount)].discount_percent = discount;
+  item.discount_percent = discount;
   renderSaleDraft();
 });
 $("#sale-items").addEventListener("click", (event) => {
