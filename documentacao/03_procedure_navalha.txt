@@ -1,0 +1,20 @@
+-- ============================================================
+-- Navalha - PROCEDURES armazenadas
+-- Banco atual: navalha (MySQL 8.0)
+--
+-- O schema atual nao possui procedures armazenadas. Operacoes
+-- transacionais, incluindo vendas e agendamentos, sao coordenadas
+-- pela API Node.js usando transacoes do mysql2.
+-- Este arquivo registra uma consulta de verificacao, sem alterar
+-- o banco.
+-- ============================================================
+
+USE navalha;
+
+SELECT ROUTINE_NAME, SQL_DATA_ACCESS, IS_DETERMINISTIC
+  FROM information_schema.ROUTINES
+ WHERE ROUTINE_SCHEMA = DATABASE()
+   AND ROUTINE_TYPE = 'PROCEDURE'
+ ORDER BY ROUTINE_NAME;
+
+-- Resultado esperado no schema atual: nenhuma linha.

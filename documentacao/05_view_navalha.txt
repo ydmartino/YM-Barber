@@ -1,0 +1,35 @@
+-- ============================================================
+-- Navalha - VIEW
+-- Banco atual: navalha (MySQL 8.0)
+-- Historico consolidado de vendas e itens vendidos.
+-- ============================================================
+
+USE navalha;
+
+CREATE OR REPLACE VIEW v_sales_history AS
+SELECT
+  s.id,
+  s.client_id,
+  c.name AS client_name,
+  s.registered_by,
+  s.total,
+  s.commission_percent,
+  s.commission_amount,
+  s.status,
+  s.sold_at AS date,
+  u.name AS registered_by_name,
+  u.is_admin AS registered_user_is_admin,
+  GROUP_CONCAT(CONCAT(si.product_name, ' (', si.quantity, ')')
+               ORDER BY si.id SEPARATOR ', ') AS product_name,
+  SUM(si.quantity) AS quantity
+FROM sales s
+INNER JOIN clients c ON c.id = s.client_id
+LEFT JOIN users u ON u.id = s.registered_by
+INNER JOIN sale_items si ON si.sale_id = s.id
+GROUP BY
+  s.id, s.client_id, c.name, s.registered_by, s.total,
+  s.commission_percent, s.commission_amount, s.status, s.sold_at,
+  u.name, u.is_admin;
+
+-- Conferencia dos registros apresentados pela view.
+SELECT * FROM v_sales_history ORDER BY date DESC LIMIT 100;

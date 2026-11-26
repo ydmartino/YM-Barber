@@ -1,0 +1,19 @@
+-- ============================================================
+-- Navalha - FUNCTIONS armazenadas
+-- Banco atual: navalha (MySQL 8.0)
+--
+-- O schema atual nao possui functions armazenadas. As regras e
+-- calculos usados pela aplicacao sao executados pela API Node.js.
+-- Este arquivo registra uma consulta de verificacao, sem alterar
+-- o banco.
+-- ============================================================
+
+USE navalha;
+
+SELECT ROUTINE_NAME, DATA_TYPE, IS_DETERMINISTIC
+  FROM information_schema.ROUTINES
+ WHERE ROUTINE_SCHEMA = DATABASE()
+   AND ROUTINE_TYPE = 'FUNCTION'
+ ORDER BY ROUTINE_NAME;
+
+-- Resultado esperado no schema atual: nenhuma linha.

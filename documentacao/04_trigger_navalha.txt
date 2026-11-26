@@ -1,0 +1,98 @@
+-- ============================================================
+-- Navalha - TRIGGERS
+-- Banco atual: navalha (MySQL 8.0)
+--
+-- Regras presentes em database.sql:
+--   * desconto do item nao pode exceder o desconto configurado
+--     no produto/servico, tanto na inclusao quanto na alteracao;
+--   * agendamentos scheduled do mesmo barbeiro nao podem se
+--     sobrepor, tanto na inclusao quanto na alteracao.
+-- ============================================================
+
+USE navalha;
+
+DROP TRIGGER IF EXISTS trg_sale_items_limit_discount_insert;
+DELIMITER //
+CREATE TRIGGER trg_sale_items_limit_discount_insert
+BEFORE INSERT ON sale_items
+FOR EACH ROW
+BEGIN
+  DECLARE configured_discount DECIMAL(5,2);
+  DECLARE maximum_allowed DECIMAL(5,2);
+  IF NEW.product_id IS NOT NULL THEN
+    SELECT discount_percent INTO configured_discount
+    FROM products WHERE id = NEW.product_id;
+    SET maximum_allowed = COALESCE(configured_discount, 0);
+    IF NEW.discount_percent < 0 OR NEW.discount_percent > maximum_allowed THEN
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Desconto inválido ou acima do limite permitido para este produto ou serviço.';
+    END IF;
+  END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_sale_items_limit_discount_update;
+DELIMITER //
+CREATE TRIGGER trg_sale_items_limit_discount_update
+BEFORE UPDATE ON sale_items
+FOR EACH ROW
+BEGIN
+  DECLARE configured_discount DECIMAL(5,2);
+  DECLARE maximum_allowed DECIMAL(5,2);
+  IF NEW.product_id IS NOT NULL THEN
+    SELECT discount_percent INTO configured_discount
+    FROM products WHERE id = NEW.product_id;
+    SET maximum_allowed = COALESCE(configured_discount, 0);
+    IF NEW.discount_percent < 0 OR NEW.discount_percent > maximum_allowed THEN
+      SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Desconto inválido ou acima do limite permitido para este produto ou serviço.';
+    END IF;
+  END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_appointments_no_overlap_insert;
+DELIMITER //
+CREATE TRIGGER trg_appointments_no_overlap_insert
+BEFORE INSERT ON appointments
+FOR EACH ROW
+BEGIN
+  DECLARE locked_barber BIGINT UNSIGNED;
+  DECLARE conflicts INT DEFAULT 0;
+  IF NEW.status = 'scheduled' THEN
+    SELECT id INTO locked_barber FROM users WHERE id = NEW.barber_id FOR UPDATE;
+    SELECT COUNT(*) INTO conflicts FROM appointments
+      WHERE barber_id = NEW.barber_id AND status = 'scheduled'
+        AND start_at < NEW.end_at AND end_at > NEW.start_at;
+    IF conflicts > 0 THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Este horário acabou de ser reservado.';
+    END IF;
+  END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_appointments_no_overlap_update;
+DELIMITER //
+CREATE TRIGGER trg_appointments_no_overlap_update
+BEFORE UPDATE ON appointments
+FOR EACH ROW
+BEGIN
+  DECLARE locked_barber BIGINT UNSIGNED;
+  DECLARE conflicts INT DEFAULT 0;
+  IF NEW.status = 'scheduled' THEN
+    SELECT id INTO locked_barber FROM users WHERE id = NEW.barber_id FOR UPDATE;
+    SELECT COUNT(*) INTO conflicts FROM appointments
+      WHERE barber_id = NEW.barber_id AND id <> NEW.id AND status = 'scheduled'
+        AND start_at < NEW.end_at AND end_at > NEW.start_at;
+    IF conflicts > 0 THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Este horário já está ocupado.';
+    END IF;
+  END IF;
+END//
+DELIMITER ;
+
+-- Conferencia das triggers instaladas; nao altera dados.
+SELECT TRIGGER_NAME, EVENT_OBJECT_TABLE, ACTION_TIMING, EVENT_MANIPULATION
+  FROM information_schema.TRIGGERS
+ WHERE TRIGGER_SCHEMA = DATABASE()
+ ORDER BY TRIGGER_NAME;

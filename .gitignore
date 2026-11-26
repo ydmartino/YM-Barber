@@ -1,3 +1,9 @@
 /node_modules/
 /.env
 /documentacao/
+!/documentacao/
+/documentacao/*
+!/documentacao/02_function_navalha.txt
+!/documentacao/03_procedure_navalha.txt
+!/documentacao/04_trigger_navalha.txt
+!/documentacao/05_view_navalha.txt
