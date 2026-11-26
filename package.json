@@ -7,12 +7,14 @@
   "scripts": {
     "start": "node server.js",
     "create-admin": "node scripts/create-admin.js",
+    "backup": "node scripts/backup-database.js",
     "test": "node --test"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "mysql2": "^3.14.0"
   }
 }

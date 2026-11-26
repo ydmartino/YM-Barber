@@ -9,6 +9,11 @@ function productInput(body, userId) {
     fail(422, "Selecione se o cadastro é um Produto ou um Serviço.");
   }
   const itemType = body.item_type;
+  const durationMinutes = itemType === "S" ? Number(body.duration_minutes) : null;
+  if (itemType === "S" &&
+      (!Number.isSafeInteger(durationMinutes) || durationMinutes < 5 || durationMinutes > 480)) {
+    fail(422, "A duração do serviço deve ser um número inteiro entre 5 e 480 minutos.");
+  }
   const discountPercent = Number(body.discount_percent);
   if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
     fail(422, "O desconto deve estar entre 0% e 100%.");
@@ -19,7 +24,9 @@ function productInput(body, userId) {
     price: productPrice(body.price),
     discountPercent: discountPercent.toFixed(2),
     stock: itemType === "S" ? 0 : productStock(body.stock),
+    lowStockThreshold: itemType === "S" ? 0 : productStock(body.low_stock_threshold ?? 5),
     itemType,
+    durationMinutes,
     userId,
   };
 }

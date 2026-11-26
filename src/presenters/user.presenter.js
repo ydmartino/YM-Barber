@@ -20,6 +20,14 @@ function permissionIds(body, isAdmin) {
   return body.permission_ids.map((permissionId) => positiveInteger(permissionId, "A lista de permissões é inválida."));
 }
 
+function staffRole(body) {
+  const role = body.role ?? "barber";
+  if (!["barber", "reception"].includes(role)) {
+    fail(422, "Selecione o perfil de barbeiro ou recepção.");
+  }
+  return role;
+}
+
 async function handle({ user, method, id, body }) {
   authPresenter.requireAdmin(user);
   if (method === "GET" && id === "permissions") return userModel.listPermissions();
@@ -29,11 +37,13 @@ async function handle({ user, method, id, body }) {
     const email = optionalEmail(body);
     if (!email) fail(422, "Informe um e-mail válido.");
     const isAdmin = body.is_admin === true;
+    const role = staffRole(body);
     return userModel.create({
       name: requiredString(body, "name", 120),
       email,
       passwordHash: passwordHash(body.password),
       isAdmin,
+      role,
       commissionPercent: commissionPercent(body),
       permissionIds: permissionIds(body, isAdmin),
       grantedBy: user.id,
@@ -46,6 +56,7 @@ async function handle({ user, method, id, body }) {
     const email = optionalEmail(body);
     if (!email) fail(422, "Informe um e-mail válido.");
     const isAdmin = body.is_admin === true;
+    const role = staffRole(body);
     const isActive = body.is_active !== false;
     if (targetId === user.id && (!isAdmin || !isActive)) {
       fail(422, "Não é possível desativar ou remover sua própria função de administrador.");
@@ -56,6 +67,7 @@ async function handle({ user, method, id, body }) {
       email,
       passwordHash: body.password ? passwordHash(body.password) : null,
       isAdmin,
+      role,
       isActive,
       commissionPercent: commissionPercent(body),
       permissionIds: permissionIds(body, isAdmin),

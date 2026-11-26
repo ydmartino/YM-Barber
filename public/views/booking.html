@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#171714">
+    <title>Agendar horário — Navalha</title>
+    <link rel="stylesheet" href="/views/styles.css">
+    <script src="/presenters/booking.presenter.js" type="module"></script>
+  </head>
+  <body class="booking-page">
+    <main class="booking-card">
+      <a class="brand booking-brand" href="/" aria-label="Navalha, voltar ao sistema">
+        <span class="brand-mark">N<span>.</span></span>
+        <span class="brand-name">navalha<small>BARBEARIA</small></span>
+      </a>
+      <p class="eyebrow">HORÁRIO ONLINE</p>
+      <h1>Agende seu atendimento<span class="gold">.</span></h1>
+      <p class="subheading">Escolha um serviço, barbeiro e horário disponível.</p>
+      <form id="booking-form" class="booking-form">
+        <label class="field">Nome completo<input name="name" maxlength="120" autocomplete="name" required></label>
+        <label class="field">Telefone<input name="phone" type="tel" maxlength="30" autocomplete="tel" required></label>
+        <label class="field">E-mail <span class="optional">(opcional)</span><input name="email" type="email" maxlength="190" autocomplete="email"></label>
+        <label class="field">Serviço<select name="service_id" id="booking-service" required><option value="">Carregando serviços…</option></select></label>
+        <label class="field">Barbeiro<select name="barber_id" id="booking-barber" required><option value="">Carregando barbeiros…</option></select></label>
+        <label class="field">Data<input name="date" id="booking-date" type="date" required></label>
+        <label class="field">Horário disponível<select name="time" id="booking-time" required disabled><option value="">Selecione serviço, barbeiro e data</option></select></label>
+        <label class="booking-consent"><input name="consent" type="checkbox" required><span>Concordo com o uso do meu nome e telefone para gerenciar este agendamento. A data do consentimento será registrada.</span></label>
+        <p class="form-error" id="booking-error" role="alert"></p>
+        <button class="button button-primary" id="booking-submit" type="submit">Confirmar agendamento <span>→</span></button>
+      </form>
+      <section id="booking-success" class="booking-result" hidden>
+        <h2>Horário reservado</h2>
+        <p id="booking-success-detail"></p>
+        <p>Guarde este código para cancelar seu agendamento, se necessário:</p>
+        <code id="booking-token"></code>
+      </section>
+      <section class="booking-cancel">
+        <h2>Cancelar agendamento</h2>
+        <form id="cancel-form">
+          <label class="field">Código de cancelamento<input name="cancellation_token" minlength="64" maxlength="64" required></label>
+          <p>O cancelamento online é permitido até 2 horas antes do horário.</p>
+          <p class="form-error" id="cancel-error" role="alert"></p>
+          <button class="button button-secondary" type="submit">Cancelar horário</button>
+        </form>
+      </section>
+      <a class="booking-back" href="/">Acesso da equipe</a>
+    </main>
+  </body>
+</html>

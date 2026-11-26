@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const bcrypt = require("bcryptjs");
 
 class ApiError extends Error {
   constructor(status, message) {
@@ -51,8 +52,8 @@ function positiveInteger(value, message) {
 
 function productPrice(value) {
   const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0 || number > 99999999.99) {
-    fail(422, "Informe um preço maior que zero, com até 8 dígitos antes das casas decimais.");
+  if (!Number.isFinite(number) || number < 0 || number > 99999999.99) {
+    fail(422, "Informe um preço igual ou maior que zero, com até 8 dígitos antes das casas decimais.");
   }
   return number.toFixed(2);
 }
@@ -69,13 +70,18 @@ function passwordHash(password) {
   if (typeof password !== "string" || password.length < 12 || password.length > 200) {
     fail(422, "A senha deve ter entre 12 e 200 caracteres.");
   }
-  const salt = crypto.randomBytes(16);
-  const key = crypto.scryptSync(password, salt, 64);
-  return `scrypt$${salt.toString("base64url")}$${key.toString("base64url")}`;
+  return bcrypt.hashSync(password, 12);
 }
 
 function verifyPassword(password, stored) {
   if (typeof password !== "string" || typeof stored !== "string") return false;
+  if (/^\$2[aby]\$12\$/.test(stored)) {
+    try {
+      return bcrypt.compareSync(password, stored);
+    } catch {
+      return false;
+    }
+  }
   const [algorithm, saltText, keyText] = stored.split("$");
   if (algorithm !== "scrypt" || !saltText || !keyText) return false;
   try {
@@ -94,6 +100,7 @@ module.exports = {
   optionalEmail,
   optionalText,
   passwordHash,
+  isBcryptHash: (stored) => typeof stored === "string" && /^\$2[aby]\$12\$/.test(stored),
   positiveInteger,
   productPrice,
   productStock,

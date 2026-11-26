@@ -6,6 +6,9 @@ const clientPresenter = require("../presenters/client.presenter");
 const productPresenter = require("../presenters/product.presenter");
 const salePresenter = require("../presenters/sale.presenter");
 const userPresenter = require("../presenters/user.presenter");
+const appointmentPresenter = require("../presenters/appointment.presenter");
+const stockPresenter = require("../presenters/stock.presenter");
+const commissionPresenter = require("../presenters/commission.presenter");
 const { ApiError, fail } = require("../models/errors");
 
 const MAX_BODY_SIZE = 1024 * 1024;
@@ -15,6 +18,9 @@ const presenters = {
   products: productPresenter,
   sales: salePresenter,
   users: userPresenter,
+  appointments: appointmentPresenter,
+  stock: stockPresenter,
+  commissions: commissionPresenter,
 };
 
 function sendJson(response, status, body) {
@@ -65,8 +71,15 @@ async function handle(request, response, url) {
   const [resource, id] = parseRoute(url);
   const body = ["POST", "PUT", "PATCH"].includes(method) ? await readBody(request) : {};
 
+  if (resource === "booking") {
+    if (!["GET", "POST"].includes(method)) fail(405, "Método não permitido.");
+    if (method === "POST") authPresenter.requirePublicCsrf(request);
+    return sendJson(response, method === "POST" && !id ? 201 : 200,
+      await appointmentPresenter.handlePublic({ method, id, body, url }));
+  }
+
   if (resource === "session" && method === "GET") {
-    const session = await authPresenter.getSession(request);
+    const session = await authPresenter.getSession(request, response);
     if (!session.authenticated) authPresenter.clearSessionCookie(response);
     return sendJson(response, 200, session);
   }
@@ -77,7 +90,7 @@ async function handle(request, response, url) {
   }
 
   if (resource === "logout" && method === "POST") {
-    const user = await authPresenter.currentUser(request);
+    const user = await authPresenter.currentUser(request, response);
     const result = authPresenter.logout(request, response, user);
     return sendJson(response, 200, result);
   }
@@ -85,7 +98,7 @@ async function handle(request, response, url) {
   if (!["GET", "HEAD", "POST", "PUT", "DELETE"].includes(method)) {
     fail(405, "Método não permitido.");
   }
-  const user = await authPresenter.currentUser(request);
+  const user = await authPresenter.currentUser(request, response);
   if (!["GET", "HEAD"].includes(method)) {
     authPresenter.validateSameOrigin(request);
     authPresenter.requireCsrf(request, user);
@@ -96,7 +109,7 @@ async function handle(request, response, url) {
 
   const result = resource === "dashboard"
     ? await presenter.getSummary(user)
-    : await presenter.handle({ user, method, id, body });
+    : await presenter.handle({ user, method, id, body, url });
   return sendJson(response, method === "POST" ? 201 : 200, { data: result });
 }
 

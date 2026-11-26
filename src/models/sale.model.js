@@ -3,27 +3,33 @@
 const { pool, transaction } = require("./database.model");
 const { fail } = require("./errors");
 
-async function list() {
-  const [rows] = await pool.query(
-    `SELECT s.id, s.client_id, c.name AS client_name, s.total,
-            s.commission_percent, s.commission_amount, s.sold_at AS date,
-            u.name AS registered_by_name,
-            GROUP_CONCAT(CONCAT(si.product_name, ' (', si.quantity, ')')
-              ORDER BY si.id SEPARATOR ', ') AS product_name,
-            SUM(si.quantity) AS quantity
-     FROM sales s
-     INNER JOIN clients c ON c.id = s.client_id
-     LEFT JOIN users u ON u.id = s.registered_by
-     INNER JOIN sale_items si ON si.sale_id = s.id
-     WHERE s.status = 'completed'
-     GROUP BY s.id, s.client_id, c.name, s.total, s.commission_percent,
-              s.commission_amount, s.sold_at, u.name
-     ORDER BY s.sold_at DESC LIMIT 500`
+async function list({ user, clientId = null }) {
+  if (!Number.isSafeInteger(clientId) && clientId !== null) {
+    fail(422, "Cliente inválido.");
+  }
+  if (!clientId) return [];
+
+  const conditions = ["status = 'completed'", "client_id = ?"];
+  const values = [clientId];
+  if (!user.is_admin) {
+    conditions.push("registered_by = ?");
+    values.push(user.id);
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id, client_id, client_name, registered_by, total,
+            commission_percent, commission_amount, date,
+            registered_by_name, product_name, quantity
+     FROM v_sales_history
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY date DESC
+     LIMIT 5`,
+    values
   );
   return rows;
 }
 
-async function register({ clientId, items, userId }) {
+async function register({ clientId, items, userId, authorizedBy = null }) {
   return transaction(async (connection) => {
     const [clients] = await connection.execute("SELECT id FROM clients WHERE id = ?", [clientId]);
     if (!clients.length) fail(422, "O cliente selecionado não existe.");
@@ -57,7 +63,7 @@ async function register({ clientId, items, userId }) {
       const product = products[0];
       if (!product) fail(422, "Um item selecionado não existe ou está inativo.");
       const productDiscount = Number(product.discount_percent || 0);
-      const maximumAllowed = Math.max(20, productDiscount);
+      const maximumAllowed = productDiscount;
       if (discountPercent > maximumAllowed) {
         fail(422, `Desconto máximo permitido para este item: ${maximumAllowed.toFixed(2)}%.`);
       }
@@ -72,12 +78,33 @@ async function register({ clientId, items, userId }) {
       normalizedItems.push({ product, quantity, discountPercent, discountAmountCents, subtotalCents });
     }
 
+    const minimumDiscountAllowed = Math.min(
+      ...normalizedItems.map((item) => Number(item.product.discount_percent || 0))
+    );
+    if (normalizedItems.some((item) => item.discountPercent > minimumDiscountAllowed)) {
+      fail(422, `O desconto da venda não pode superar o menor limite configurado entre os itens: ${minimumDiscountAllowed.toFixed(2)}%.`);
+    }
+
+    const requiresAuthorization = normalizedItems.some((item) => item.discountPercent > 15);
+    if (requiresAuthorization && !authorizedBy) {
+      fail(403, "Descontos acima de 15% exigem autorização de um administrador.");
+    }
+    if (authorizedBy) {
+      const [admins] = await connection.execute(
+        "SELECT id FROM users WHERE id = ? AND is_admin = 1 AND is_active = 1",
+        [authorizedBy]
+      );
+      if (!admins.length || !requiresAuthorization) {
+        fail(403, "A autorização de desconto não é válida.");
+      }
+    }
+
     const total = (totalCents / 100).toFixed(2);
     const commissionAmount = ((totalCents * commissionPercent) / 10000).toFixed(2);
     const [sale] = await connection.execute(
-      `INSERT INTO sales (client_id, registered_by, total, commission_percent, commission_amount)
-       VALUES (?, ?, ?, ?, ?)`,
-      [clientId, userId, total, commissionPercent.toFixed(2), commissionAmount]
+      `INSERT INTO sales (client_id, registered_by, authorized_by, total, commission_percent, commission_amount)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [clientId, userId, authorizedBy, total, commissionPercent.toFixed(2), commissionAmount]
     );
 
     for (const item of normalizedItems) {

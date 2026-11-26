@@ -7,6 +7,7 @@ async function getSummary(user) {
   authPresenter.requirePermission(user, "dashboard.view");
   return dashboardModel.getSummary({
     includeSales: authPresenter.can(user, "sales.view"),
+    user,
   });
 }
 

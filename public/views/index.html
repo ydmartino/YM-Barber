@@ -26,6 +26,7 @@
         <p class="auth-error" id="login-error" role="alert"></p>
         <button class="button button-primary" type="submit">Entrar <span>→</span></button>
         <p class="auth-help">Primeiro acesso? Crie o administrador pelo terminal. Instruções no README.</p>
+        <a class="booking-back" href="/agendar">Agendar atendimento online</a>
       </form>
     </section>
 
@@ -41,6 +42,8 @@
         <button class="nav-link" data-view="clients"><span class="nav-icon">♙</span>Clientes</button>
         <button class="nav-link" data-view="products"><span class="nav-icon">▤</span>Produtos</button>
         <button class="nav-link" data-view="sales"><span class="nav-icon">↗</span>Vendas</button>
+        <button class="nav-link" data-view="appointments"><span class="nav-icon">◷</span>Agenda</button>
+        <button class="nav-link" data-view="commissions"><span class="nav-icon">％</span>Comissões</button>
         <button class="nav-link" data-view="users"><span class="nav-icon">♧</span>Usuários</button>
       </nav>
       <div class="sidebar-bottom">
@@ -65,13 +68,14 @@
           <article class="stat-card"><div class="stat-top"><span>VENDAS DE HOJE</span><span class="stat-icon">↗</span></div><strong id="stat-today">R$ 0,00</strong><small id="stat-today-count">0 vendas realizadas</small></article>
           <article class="stat-card"><div class="stat-top"><span>CLIENTES CADASTRADOS</span><span class="stat-icon">♙</span></div><strong id="stat-clients">0</strong><small>na sua base de clientes</small></article>
           <article class="stat-card"><div class="stat-top"><span>PRODUTOS NO ESTOQUE</span><span class="stat-icon">▤</span></div><strong id="stat-products">0</strong><small id="stat-stock">itens disponíveis</small></article>
+          <article class="stat-card" id="commission-stat"><div class="stat-top"><span>COMISSÕES DE HOJE</span><span class="stat-icon">％</span></div><strong id="stat-commission">R$ 0,00</strong><small>calculadas após descontos</small></article>
         </div>
         <div class="content-grid">
           <section class="panel" id="dashboard-recent-panel">
             <div class="panel-heading"><div><p class="eyebrow">ACOMPANHAMENTO</p><h2>Vendas recentes</h2></div><button class="text-button" id="dashboard-view-sales" data-go="sales">Ver todas <span>→</span></button></div>
             <div class="table-wrap"><table><thead><tr><th>CLIENTE</th><th>PRODUTO</th><th>DATA</th><th class="align-right">VALOR</th></tr></thead><tbody id="recent-sales"></tbody></table><div class="empty-state" id="sales-empty"><span class="empty-icon">↗</span><strong>Nenhuma venda por aqui</strong><p>Suas vendas aparecerão aqui assim que forem registradas.</p><button class="text-button" id="dashboard-first-sale" data-go="sales">Registrar primeira venda →</button></div></div>
           </section>
-          <aside class="panel quick-panel"><div class="panel-heading"><div><p class="eyebrow">ATALHOS</p><h2>Acesso rápido</h2></div></div><button class="quick-action" data-go="clients"><span class="quick-icon">♙</span><span><strong>Novo cliente</strong><small>Adicione alguém à sua base</small></span><span class="quick-arrow">→</span></button><button class="quick-action" data-go="products"><span class="quick-icon">▤</span><span><strong>Cadastrar produto</strong><small>Atualize seu catálogo</small></span><span class="quick-arrow">→</span></button><div class="stock-alert"><span class="alert-icon">!</span><span><strong id="low-stock-count">0 produtos</strong><small>com estoque baixo</small></span></div></aside>
+          <aside class="panel quick-panel"><div class="panel-heading"><div><p class="eyebrow">ATALHOS</p><h2>Acesso rápido</h2></div></div><button class="quick-action" data-go="clients"><span class="quick-icon">♙</span><span><strong>Novo cliente</strong><small>Adicione alguém à sua base</small></span><span class="quick-arrow">→</span></button><button class="quick-action" data-go="products"><span class="quick-icon">▤</span><span><strong>Cadastrar produto</strong><small>Atualize seu catálogo</small></span><span class="quick-arrow">→</span></button><div class="stock-alert"><span class="alert-icon">!</span><span><strong id="low-stock-count">0 produtos</strong><small>com estoque baixo</small></span></div><div class="client-segments" id="client-segments"></div></aside>
         </div>
       </section>
 
@@ -108,7 +112,31 @@
           </section>
           <aside class="sale-note"><span class="note-mark">✳</span><p class="eyebrow">DICA RÁPIDA</p><h3>Venda registrada,<br>estoque atualizado.</h3><p>Ao confirmar, a quantidade vendida será descontada automaticamente do estoque do produto.</p><div class="note-line"></div><small>Simples assim. Seu caixa sempre em dia.</small></aside>
         </div>
-        <section class="panel history-panel" id="history-panel"><div class="panel-toolbar"><div><p class="eyebrow">MOVIMENTAÇÃO</p><h2>Histórico de vendas</h2></div></div><div class="table-wrap"><table>        <thead><tr><th>CLIENTE</th><th>PRODUTO/SERVIÇO</th><th>QTD.</th><th>USUÁRIO</th><th>COMISSÃO</th><th>DATA</th><th class="align-right">TOTAL</th></tr></thead><tbody id="sales-table"></tbody></table><div class="empty-state" id="history-empty"><span class="empty-icon">↗</span><strong>Nenhuma venda registrada</strong><p>Suas vendas registradas aparecerão nesta lista.</p></div></div></section>      </section>
+        <section class="panel history-panel" id="history-panel"><div class="panel-toolbar"><div><p class="eyebrow">MOVIMENTAÇÃO</p><h2>Últimas vendas do cliente</h2></div></div><div class="table-wrap"><table>        <thead><tr><th>CLIENTE</th><th>PRODUTO/SERVIÇO</th><th>QTD.</th><th>USUÁRIO</th><th>COMISSÃO</th><th>DATA</th><th class="align-right">TOTAL</th></tr></thead><tbody id="sales-table"></tbody></table><div class="empty-state" id="history-empty"><span class="empty-icon">↗</span><strong>Nenhuma venda registrada</strong><p>Suas vendas registradas aparecerão nesta lista.</p></div></div></section>
+      </section>
+          <section class="page" id="view-appointments">
+            <div class="page-heading"><div><p class="eyebrow">HORÁRIOS E ATENDIMENTOS</p><h1>Agenda<span class="gold">.</span></h1><p class="subheading">Consulte e atualize os agendamentos por barbeiro.</p></div><div><button class="button button-primary" id="new-appointment-button" type="button">Novo agendamento</button> <a class="button button-secondary" href="/agendar" target="_blank" rel="noopener">Link público</a></div></div>
+            <div class="panel">
+              <div class="schedule-toolbar">
+                <label class="field">Data<input id="appointment-date" type="date"></label>
+                <label class="field" id="appointment-barber-wrap">Barbeiro<select id="appointment-barber"><option value="">Todos os barbeiros</option></select></label>
+                <button class="button button-secondary" id="working-hours-button" type="button">Expediente semanal</button>
+              </div>
+              <div class="table-wrap"><table><thead><tr><th>HORÁRIO</th><th>CLIENTE</th><th>TELEFONE</th><th>SERVIÇO</th><th>BARBEIRO</th><th>STATUS</th><th>RISCO DE FALTA</th><th></th></tr></thead><tbody id="appointments-table"></tbody></table><div class="empty-state" id="appointments-empty"><strong>Nenhum agendamento nesta data</strong><p>Os horários marcados serão exibidos aqui.</p></div></div>
+            </div>
+          </section>
+          <section class="page" id="view-commissions">
+            <div class="page-heading"><div><p class="eyebrow">DESEMPENHO</p><h1>Comissões<span class="gold">.</span></h1><p class="subheading">Consulte os valores apurados no período selecionado.</p></div></div>
+            <div class="panel">
+              <div class="schedule-toolbar">
+                <label class="field">De<input id="commission-from" type="date" required></label>
+                <label class="field">Até<input id="commission-to" type="date" required></label>
+                <button class="button button-primary" id="commission-search" type="button">Consultar</button>
+              </div>
+              <div class="sale-total"><span>Total de comissão no período</span><strong id="commission-total">R$ 0,00</strong></div>
+              <div class="table-wrap"><table><thead><tr><th>DATA</th><th>CLIENTE</th><th>BARBEIRO</th><th>VENDA</th><th>ALÍQUOTA</th><th class="align-right">COMISSÃO</th></tr></thead><tbody id="commissions-table"></tbody></table><div class="empty-state" id="commissions-empty"><strong>Nenhuma comissão no período</strong><p>As vendas concluídas aparecerão aqui.</p></div></div>
+            </div>
+          </section>
       <section class="page" id="view-users">
         <div class="page-heading"><div><p class="eyebrow">ACESSO AO SISTEMA</p><h1>Usuários<span class="gold">.</span></h1><p class="subheading">Gerencie contas, funções e permissões de acesso.</p></div><button class="button button-primary" id="new-user-button"><span>＋</span> Novo usuário</button></div>
         <div class="panel">
@@ -125,8 +153,15 @@
         <label class="field field-full">Nome completo<input id="client-name" type="text" placeholder="Ex.: João Silva" maxlength="80" required></label>
         <label class="field field-full">Telefone<input id="client-phone" type="tel" placeholder="(11) 99999-9999" maxlength="20" required></label>
         <label class="field field-full">E-mail <span class="optional">(opcional)</span><input id="client-email" type="email" placeholder="joao@email.com" maxlength="120"></label>
+        <label class="check-field field-full" id="client-consent-wrap"><input id="client-consent" type="checkbox" required><span><strong>Consentimento LGPD</strong><small>Autorizo o uso destes dados para gestão dos atendimentos.</small></span></label>
         <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar cliente</button></div>
       </form>
+    </dialog>
+    <dialog class="modal" id="client-history-modal">
+      <div class="modal-form">
+        <div class="modal-heading"><div><p class="eyebrow">RELACIONAMENTO</p><h2>Histórico de atendimentos</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
+        <div class="table-wrap"><table><thead><tr><th>DATA</th><th>SERVIÇO</th><th>BARBEIRO</th><th>STATUS</th></tr></thead><tbody id="client-history-table"></tbody></table><div class="empty-state" id="client-history-empty"><strong>Nenhum atendimento registrado</strong></div></div>
+      </div>
     </dialog>
 
     <dialog class="modal" id="product-modal">
@@ -135,8 +170,9 @@
         <input type="hidden" id="product-id">
         <label class="field field-full">Nome<input id="product-name" type="text" placeholder="Ex.: Pomada modeladora ou Corte masculino" maxlength="80" required></label>
         <div class="form-grid field-full"><label class="check-field"><input id="product-type" type="checkbox" checked><span><strong id="product-type-label">Produto</strong><small>Selecione para Produto; desmarque para Serviço.</small></span></label><label class="field">Categoria<input id="product-category" type="text" placeholder="Ex.: Finalização ou Corte" maxlength="80" required></label></div>
-        <div class="form-grid field-full"><label class="field">Preço (R$)<input id="product-price" type="number" min="0.01" step="0.01" placeholder="0,00" required></label><label class="field">Desconto sugerido (%)<input id="product-discount" type="number" min="0" max="100" step="0.01" value="0" required></label></div>
-        <div class="field field-full">Estoque<input id="product-stock" type="number" min="0" step="1" placeholder="0" required></div>
+        <div class="form-grid field-full"><label class="field">Preço (R$)<input id="product-price" type="number" min="0" step="0.01" placeholder="0,00" required></label><label class="field">Desconto máximo (%)<input id="product-discount" type="number" min="0" max="100" step="0.01" value="0" required></label></div>
+        <div class="form-grid field-full"><label class="field" id="product-stock-wrap">Estoque<input id="product-stock" type="number" min="0" step="1" placeholder="0" required></label><label class="field" id="product-threshold-wrap">Estoque mínimo<input id="product-threshold" type="number" min="0" step="1" value="5" required></label></div>
+        <label class="field field-full" id="product-duration-wrap">Duração do serviço (minutos)<input id="product-duration" type="number" min="5" max="480" step="5" value="30"></label>
         <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar produto</button></div>
       </form>
     </dialog>
@@ -146,6 +182,7 @@
         <input type="hidden" id="user-id">
         <label class="field field-full">Nome completo<input id="user-name" type="text" maxlength="120" required></label>
         <label class="field field-full">E-mail<input id="user-email" type="email" maxlength="190" autocomplete="off" required></label>
+        <label class="field field-full">Perfil<select id="user-role" required><option value="barber">Barbeiro</option><option value="reception">Recepção</option></select></label>
         <label class="field field-full">Senha <span class="optional" id="password-hint">(mínimo 12 caracteres)</span><input id="user-password" type="password" minlength="12" maxlength="200" autocomplete="new-password"></label>
         <label class="field field-full">Percentual de comissão (%)<input id="user-commission" type="number" min="0" max="100" step="0.01" value="0" required></label>
         <label class="check-field"><input id="user-is-admin" type="checkbox"><span><strong>Administrador</strong><small>Acesso completo a todos os módulos.</small></span></label>
@@ -153,6 +190,38 @@
         <label class="check-field" id="user-active-wrap"><input id="user-active" type="checkbox" checked><span><strong>Conta ativa</strong><small>Usuário pode entrar no sistema.</small></span></label>
         <p class="form-error" id="user-form-error" role="alert"></p>
         <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar usuário</button></div>
+      </form>
+    </dialog>
+    <dialog class="modal" id="working-hours-modal">
+      <form class="modal-form" id="working-hours-form">
+        <div class="modal-heading"><div><p class="eyebrow">AGENDA DO BARBEIRO</p><h2>Expediente semanal</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
+        <label class="field">Barbeiro<select id="hours-barber" required></select></label>
+        <div class="working-hours-list" id="working-hours-list"></div>
+        <p class="form-error" id="working-hours-error" role="alert"></p>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar expediente</button></div>
+      </form>
+    </dialog>
+    <dialog class="modal" id="appointment-modal">
+      <form class="modal-form" id="appointment-form">
+        <div class="modal-heading"><div><p class="eyebrow">AGENDA DA BARBEARIA</p><h2>Novo agendamento</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
+        <label class="field">Cliente<select id="appointment-client" required></select></label>
+        <label class="check-field field-full" id="appointment-consent-wrap" hidden><input id="appointment-consent" type="checkbox"><span><strong>Consentimento LGPD</strong><small>O cliente autorizou o uso dos dados para gestão dos atendimentos.</small></span></label>
+        <label class="field">Serviço<select id="appointment-service" required></select></label>
+        <label class="field">Barbeiro<select id="appointment-form-barber" required></select></label>
+        <label class="field">Data<input id="appointment-form-date" type="date" required></label>
+        <label class="field">Horário disponível<select id="appointment-time" required disabled><option value="">Selecione serviço, barbeiro e data</option></select></label>
+        <p class="form-error" id="appointment-form-error" role="alert"></p>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Cancelar</button><button type="submit" class="button button-primary">Salvar horário</button></div>
+      </form>
+    </dialog>
+    <dialog class="modal" id="discount-auth-modal">
+      <form class="modal-form" id="discount-auth-form">
+        <div class="modal-heading"><div><p class="eyebrow">AUTORIZAÇÃO NECESSÁRIA</p><h2>Desconto acima de 15%</h2></div><button class="close-button" type="button" data-close aria-label="Fechar">×</button></div>
+        <p class="subheading">Um administrador deve confirmar esta venda com suas credenciais.</p>
+        <label class="field">E-mail do administrador<input id="discount-admin-email" type="email" autocomplete="username" required></label>
+        <label class="field">Senha do administrador<input id="discount-admin-password" type="password" autocomplete="current-password" required></label>
+        <p class="form-error" id="discount-auth-error" role="alert"></p>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close>Voltar</button><button type="submit" class="button button-primary">Autorizar e confirmar</button></div>
       </form>
     </dialog>
     <dialog class="modal" id="sale-summary-modal">

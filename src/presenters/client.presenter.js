@@ -2,7 +2,7 @@
 
 const clientModel = require("../models/client.model");
 const authPresenter = require("./auth.presenter");
-const { fail, optionalEmail, optionalText, requiredString } = require("../models/errors");
+const { fail, optionalEmail, requiredString } = require("../models/errors");
 
 async function handle({ user, method, id, body }) {
   if (method === "GET" && !id) {
@@ -11,20 +11,20 @@ async function handle({ user, method, id, body }) {
   }
   authPresenter.requirePermission(user, "clients.manage");
   if (method === "POST" && !id) {
+    if (body.consent !== true) fail(422, "O consentimento para o tratamento dos dados é obrigatório.");
     return clientModel.create({
       name: requiredString(body, "name", 120),
       phone: requiredString(body, "phone", 30),
       email: optionalEmail(body),
-      notes: optionalText(body, "notes", 5000),
       userId: user.id,
     });
   }
   if (method === "PUT" && id) {
+    if (body.consent !== true) fail(422, "O consentimento para o tratamento dos dados é obrigatório.");
     const updated = await clientModel.update(id, {
       name: requiredString(body, "name", 120),
       phone: requiredString(body, "phone", 30),
       email: optionalEmail(body),
-      notes: optionalText(body, "notes", 5000),
     });
     if (!updated) fail(404, "Cliente não encontrado.");
     return { updated: true };

@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const { rootDirectory } = require("../config/environment");
 const { ApiError } = require("../models/errors");
 
@@ -36,7 +37,11 @@ async function view(request, response, url) {
     return sendJson(response, 400, { error: "Caminho de arquivo inválido." });
   }
 
-  const relative = pathname === "/" ? "views/index.html" : pathname.replace(/^\/+/, "");
+  const relative = pathname === "/"
+    ? "views/index.html"
+    : pathname === "/agendar"
+      ? "views/booking.html"
+      : pathname.replace(/^\/+/, "");
   const filename = path.resolve(publicDirectory, relative);
   if (!filename.startsWith(`${publicDirectory}${path.sep}`) ||
       relative.split(/[\\/]/).some((part) => part.startsWith("."))) {
@@ -52,12 +57,17 @@ async function view(request, response, url) {
     }
     throw error;
   }
-  response.writeHead(200, {
+  const headers = {
     "Content-Type": mimeTypes[path.extname(filename).toLowerCase()] || "application/octet-stream",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Frame-Options": "DENY",
-  });
+  };
+  if (pathname === "/agendar") {
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    headers["Set-Cookie"] = `navalha_booking_csrf=${crypto.randomBytes(32).toString("hex")}; Path=/; SameSite=Strict; Max-Age=1800${secure}`;
+  }
+  response.writeHead(200, headers);
   response.end(request.method === "HEAD" ? undefined : content);
 }
 
