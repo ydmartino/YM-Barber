@@ -2,19 +2,89 @@
 -- Navalha - PROCEDURES armazenadas
 -- Banco atual: navalha (MySQL 8.0)
 --
--- O schema atual nao possui procedures armazenadas. Operacoes
--- transacionais, incluindo vendas e agendamentos, sao coordenadas
--- pela API Node.js usando transacoes do mysql2.
--- Este arquivo registra uma consulta de verificacao, sem alterar
--- o banco.
+-- Procedures previstas para operacoes administrativas feitas
+-- direto no banco (MySQL Workbench ou scripts). A API Node.js
+-- continua executando as mesmas regras com transacoes do mysql2.
+--   * sp_entrada_estoque: entrada de reposicao de estoque (RF15);
+--   * sp_cancelar_agendamento: cancelamento com prazo de 2 horas (RN11).
+-- Ambas usam transacao, SELECT ... FOR UPDATE, SIGNAL para erros
+-- de negocio e EXIT HANDLER com ROLLBACK/RESIGNAL.
 -- ============================================================
 
 USE navalha;
 
+DROP PROCEDURE IF EXISTS sp_entrada_estoque;
+DROP PROCEDURE IF EXISTS sp_cancelar_agendamento;
+DELIMITER //
+CREATE PROCEDURE sp_entrada_estoque(
+  IN p_product_id BIGINT UNSIGNED, IN p_quantidade INT, IN p_user_id BIGINT UNSIGNED, IN p_obs VARCHAR(255))
+BEGIN
+  DECLARE v_tipo CHAR(1);
+  DECLARE v_ativo TINYINT;
+  DECLARE v_estoque INT UNSIGNED;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    ROLLBACK;
+    RESIGNAL;
+  END;
+
+  IF p_quantidade IS NULL OR p_quantidade < 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A quantidade de entrada deve ser maior que zero.';
+  END IF;
+
+  START TRANSACTION;
+    SELECT item_type, is_active, stock INTO v_tipo, v_ativo, v_estoque
+    FROM products WHERE id = p_product_id FOR UPDATE;
+    IF v_tipo IS NULL THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Produto não encontrado.';
+    ELSEIF v_tipo = 'S' THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Serviços não têm estoque.';
+    ELSEIF v_ativo = 0 THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Produto inativo não recebe entrada de estoque.';
+    END IF;
+
+    UPDATE products SET stock = stock + p_quantidade WHERE id = p_product_id;
+    INSERT INTO stock_movements (product_id, user_id, movement_type, quantity_change, stock_after, notes)
+    VALUES (p_product_id, p_user_id, 'entry', p_quantidade, v_estoque + p_quantidade,
+            COALESCE(NULLIF(TRIM(p_obs), ''), 'Entrada de reposição'));
+  COMMIT;
+
+  SELECT p_product_id AS produto, v_estoque AS estoque_anterior, v_estoque + p_quantidade AS estoque_atual;
+END//
+
+CREATE PROCEDURE sp_cancelar_agendamento(IN p_appointment_id BIGINT UNSIGNED)
+BEGIN
+  DECLARE v_status VARCHAR(20);
+  DECLARE v_inicio DATETIME;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    ROLLBACK;
+    RESIGNAL;
+  END;
+
+  START TRANSACTION;
+    SELECT status, start_at INTO v_status, v_inicio
+    FROM appointments WHERE id = p_appointment_id FOR UPDATE;
+    IF v_status IS NULL THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Agendamento não encontrado.';
+    ELSEIF v_status <> 'scheduled' THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'O agendamento já foi concluído, cancelado ou marcado como falta.';
+    ELSEIF v_inicio < UTC_TIMESTAMP() + INTERVAL 2 HOUR THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'O cancelamento só é permitido até 2 horas antes do horário.';
+    END IF;
+    UPDATE appointments SET status = 'cancelled', cancellation_token_hash = NULL WHERE id = p_appointment_id;
+  COMMIT;
+END//
+
+DELIMITER ;
+
+-- Exemplos de uso:
+-- CALL sp_entrada_estoque(5, 6, 1, 'Reposicao do fornecedor');
+-- CALL sp_cancelar_agendamento(10);
+
+-- Conferencia das procedures instaladas; nao altera dados.
 SELECT ROUTINE_NAME, SQL_DATA_ACCESS, IS_DETERMINISTIC
   FROM information_schema.ROUTINES
  WHERE ROUTINE_SCHEMA = DATABASE()
    AND ROUTINE_TYPE = 'PROCEDURE'
  ORDER BY ROUTINE_NAME;
-
--- Resultado esperado no schema atual: nenhuma linha.

@@ -7,6 +7,12 @@
 --     no produto/servico, tanto na inclusao quanto na alteracao;
 --   * agendamentos scheduled do mesmo barbeiro nao podem se
 --     sobrepor, tanto na inclusao quanto na alteracao.
+-- Triggers previstas neste script (complementam database.sql):
+--   * servico (item_type = 'S') precisa de duracao entre 5 e 480
+--     minutos, fechando a brecha do CHECK chk_products_duration,
+--     que aceita duracao nula;
+--   * venda registrada nao muda de valor e venda cancelada nao
+--     pode ser reativada.
 -- ============================================================
 
 USE navalha;
@@ -87,6 +93,43 @@ BEGIN
     IF conflicts > 0 THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Este horário já está ocupado.';
     END IF;
+  END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_products_duracao_insert;
+DELIMITER //
+CREATE TRIGGER trg_products_duracao_insert
+BEFORE INSERT ON products FOR EACH ROW
+BEGIN
+  IF NEW.item_type = 'S' AND (NEW.duration_minutes IS NULL OR NEW.duration_minutes NOT BETWEEN 5 AND 480) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Serviço precisa de duração entre 5 e 480 minutos.';
+  END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_products_duracao_update;
+DELIMITER //
+CREATE TRIGGER trg_products_duracao_update
+BEFORE UPDATE ON products FOR EACH ROW
+BEGIN
+  IF NEW.item_type = 'S' AND (NEW.duration_minutes IS NULL OR NEW.duration_minutes NOT BETWEEN 5 AND 480) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Serviço precisa de duração entre 5 e 480 minutos.';
+  END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_sales_historico_imutavel;
+DELIMITER //
+CREATE TRIGGER trg_sales_historico_imutavel
+BEFORE UPDATE ON sales FOR EACH ROW
+BEGIN
+  IF NEW.total <> OLD.total OR NEW.commission_amount <> OLD.commission_amount
+     OR NEW.commission_percent <> OLD.commission_percent OR NEW.client_id <> OLD.client_id THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Valores de uma venda registrada não podem ser alterados.';
+  END IF;
+  IF OLD.status = 'cancelled' AND NEW.status = 'completed' THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Uma venda cancelada não pode ser reativada.';
   END IF;
 END//
 DELIMITER ;
